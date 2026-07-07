@@ -1,0 +1,17 @@
+from pathlib import Path
+import os
+
+ROOT = Path(__file__).resolve().parent.parent
+
+DATA = Path(os.environ.get(
+    "HOME_DATA",
+    ROOT / "instance"
+))
+
+WORKSPACES = DATA / "workspaces"
+
+DATABASE = DATA / "home.db"
+
+APPS = ROOT / "apps"
+
+ARK = APPS / "ark" / "bin" / "ark"
