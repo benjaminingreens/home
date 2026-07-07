@@ -1,0 +1,128 @@
+html {
+  box-sizing: border-box;
+  background: #000;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+body {
+  margin: 0;
+  padding: 32px 20px 56px;
+  background: #000;
+  color: #fff;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 19px;
+  line-height: 1.65;
+}
+
+.content {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+a:hover {
+  text-decoration: none;
+}
+
+.topbar {
+  width: 100%;
+  margin: 0 0 48px;
+  padding: 0;
+  color: #bbb;
+  font-size: 1em;
+  line-height: 1.65;
+  font-style: italic;
+}
+
+.big-links a {
+  display: block;
+  font-size: 2.1em;
+  line-height: 1.25;
+  margin: 0 0 22px;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.big-links a:hover {
+  text-decoration: underline;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+h1 {
+  margin: 0 0 32px;
+}
+
+pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font: inherit;
+  max-width: 66ch;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  background: #000;
+  color: #fff;
+  border: 1px solid #666;
+  padding: 8px;
+}
+
+button {
+  cursor: pointer;
+}
+
+form {
+  margin: 0 0 32px;
+}
+
+label {
+  display: block;
+  margin: 0 0 16px;
+}
+
+label span {
+  display: block;
+  color: #bbb;
+  margin-bottom: 4px;
+}
+
+.error {
+  color: #ff9b9b;
+}
+
+.notice {
+  color: #9be39b;
+}
+
+.muted {
+  color: #666;
+}
+
+@media (min-width: 768px) {
+  body {
+    padding: 32px 32px 72px;
+    font-size: 21px;
+  }
+
+  .content {
+    max-width: 900px;
+  }
+}

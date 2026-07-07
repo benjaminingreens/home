@@ -3,10 +3,12 @@ import os
 
 ROOT = Path(__file__).resolve().parent.parent
 
-DATA = Path(os.environ.get(
-    "HOME_DATA",
-    ROOT / "instance"
-))
+DATA = Path(
+    os.environ.get(
+        "HOME_DATA",
+        ROOT / "data",
+    )
+)
 
 WORKSPACES = DATA / "workspaces"
 

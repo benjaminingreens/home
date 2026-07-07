@@ -1,25 +1,10 @@
 #!/usr/bin/env python3
 
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from core.app import app
 
-from core.storage import init
-
-init()
-
-class Home(BaseHTTPRequestHandler):
-
-    def do_GET(self):
-
-        self.send_response(200)
-
-        self.send_header("Content-Type", "text/html")
-
-        self.end_headers()
-
-        self.wfile.write(b"""
-<h1>Home</h1>
-
-<p>Installation successful.</p>
-""")
-
-HTTPServer(("0.0.0.0",8000),Home).serve_forever()
+if __name__ == "__main__":
+    app.run(
+        host="0.0.0.0",
+        port=8000,
+        debug=True,
+    )

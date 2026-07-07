@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block nav %}
+
+<a href="/">home</a>
+
+{% endblock %}
+
+{% block body %}
+
+<h1>Login</h1>
+
+<form method="post">
+
+<label>
+
+<span>Username</span>
+
+<input
+    name="username"
+    autofocus
+>
+
+</label>
+
+<label>
+
+<span>Password</span>
+
+<input
+    name="password"
+    type="password"
+>
+
+</label>
+
+<button>
+
+Login
+
+</button>
+
+</form>
+
+<p>
+
+<a href="/register">
+
+Create account
+
+</a>
+
+</p>
+
+{% endblock %}
