@@ -1,0 +1,3 @@
+[submodule "apps/ark"]
+	path = apps/ark
+	url = https://github.com/benjaminingreens/ark.git
