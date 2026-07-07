@@ -15,5 +15,3 @@ WORKSPACES = DATA / "workspaces"
 DATABASE = DATA / "home.db"
 
 APPS = ROOT / "apps"
-
-ARK = APPS / "ark" / "bin" / "ark"

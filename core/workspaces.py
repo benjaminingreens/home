@@ -1,31 +1,20 @@
 from pathlib import Path
-import subprocess
 
-from .config import WORKSPACES, ARK
-from .db import connect
+from .config import WORKSPACES
 
 
-def path(username):
+def path(user):
 
-    return WORKSPACES / username
+    return WORKSPACES / user
+
+
+def app(user, app):
+
+    return path(user) / app
 
 
 def create(user):
 
     root = path(user)
 
-    ark = root / "ark"
-
-    apps = root / "apps"
-
-    ark.mkdir(parents=True, exist_ok=True)
-
-    apps.mkdir(parents=True, exist_ok=True)
-
-    if not (ark / ".ark").exists():
-
-        subprocess.run(
-            [str(ARK), "init"],
-            cwd=ark,
-            check=False,
-        )
+    root.mkdir(parents=True, exist_ok=True)

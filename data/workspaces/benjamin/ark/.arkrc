@@ -1,0 +1,24 @@
+[bases]
+.
+
+[defaults]
+authour=
+assignee=
+tag=general
+
+[queries]
+normalise =
+  edit 'todo, -=todo, !=1, --%' set '%+2w'
+  ;; edit 'todo, -=todo, !=2, --%' set '%+4w'
+  ;; edit 'todo, -=todo, !>1, %>=today, %<+2w' set '!1'
+  ;; edit 'todo, -=todo, !>2, %>=+2w, %<=+4w' set '!2'
+  ;; edit 'todo, -=todo, !<2, %>=-4w, %<=-2w' set '!2'
+  ;; edit 'todo, -=todo, !<3, %<-4w' set '!3'
+
+report =
+  evnt, week, --^, >>
+  ;; evnt, today, -^, >>
+  ;; glance 'todo, -=todo, (-!1|-!2), >!'
+  ;; glance 'newest(todo, -=todo, -!3; 2)'
+  ;; glance 'oldest(todo, -=todo, -!3; 2)'
+  ;; glance 'random(todo, -=todo, -!3; 2)'
