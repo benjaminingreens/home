@@ -1,6 +1,6 @@
 from hashlib import sha256
-
 from .db import connect
+from .workspaces import create as create_workspace
 
 
 def hash_password(password):
@@ -18,6 +18,8 @@ def create(username, password):
             """,
             (username, hash_password(password)),
         )
+
+    create_workspace(username)
 
 
 def authenticate(username, password):

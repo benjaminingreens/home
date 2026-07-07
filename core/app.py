@@ -1,10 +1,13 @@
+from .auth import current_user
 from pathlib import Path
+from .apps import load_apps
 
 from flask import (
     Flask,
     render_template,
     request,
     redirect,
+    abort,
 )
 
 from .storage import init
@@ -21,15 +24,39 @@ app = Flask(
     static_folder=str(ROOT / "static"),
 )
 
+APPS = load_apps(app)
+
 app.secret_key = "development"
+
+@app.get("/apps")
+def apps():
+
+    user = current_user()
+
+    if not user:
+        return redirect("/login")
+
+    return render_template(
+        "apps.html",
+        title="Apps",
+        user=user,
+        apps=APPS,
+    )
 
 
 @app.get("/")
 def index():
 
+    user = current_user()
+
+    if not user:
+
+        return redirect("/login")
+
     return render_template(
         "index.html",
         title="Home",
+        user=user,
     )
 
 
