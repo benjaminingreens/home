@@ -1,128 +1,218 @@
 html {
-  box-sizing: border-box;
-  background: #000;
+    box-sizing: border-box;
+    background: #000;
 }
 
-*, *::before, *::after {
-  box-sizing: inherit;
+*,
+*::before,
+*::after {
+    box-sizing: inherit;
 }
 
 body {
-  margin: 0;
-  padding: 32px 20px 56px;
-  background: #000;
-  color: #fff;
-  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 19px;
-  line-height: 1.65;
+    margin: 0;
+    padding: 32px;
+    background: #000;
+    color: #fff;
+    font-family:
+        "IBM Plex Mono",
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        "Liberation Mono",
+        "Courier New",
+        monospace;
+    font-size: 20px;
+    line-height: 1.65;
 }
 
 .content {
-  width: 100%;
-  max-width: 760px;
-  margin: 0 auto;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
 }
 
 a {
-  color: inherit;
-  text-decoration: underline;
+    color: inherit;
+    text-decoration: underline;
 }
 
 a:hover {
-  text-decoration: none;
+    text-decoration: none;
 }
 
 .topbar {
-  width: 100%;
-  margin: 0 0 48px;
-  padding: 0;
-  color: #bbb;
-  font-size: 1em;
-  line-height: 1.65;
-  font-style: italic;
+    margin-bottom: 48px;
+    color: #888;
+    font-style: italic;
 }
 
 .big-links a {
-  display: block;
-  font-size: 2.1em;
-  line-height: 1.25;
-  margin: 0 0 22px;
-  text-decoration: underline;
-  text-underline-offset: 0.12em;
-}
-
-.big-links a:hover {
-  text-decoration: underline;
+    display: block;
+    margin-bottom: 20px;
+    font-size: 2rem;
 }
 
 h1,
 h2,
 h3 {
-  line-height: 1.2;
-  font-weight: 700;
-}
-
-h1 {
-  margin: 0 0 32px;
+    font-weight: bold;
+    line-height: 1.2;
 }
 
 pre {
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  font: inherit;
-  max-width: 66ch;
+    white-space: pre-wrap;
+    font: inherit;
 }
 
 input,
 button,
 textarea,
 select {
-  font: inherit;
-  background: #000;
-  color: #fff;
-  border: 1px solid #666;
-  padding: 8px;
+    font: inherit;
+    background: #000;
+    color: inherit;
 }
 
 button {
-  cursor: pointer;
-}
-
-form {
-  margin: 0 0 32px;
-}
-
-label {
-  display: block;
-  margin: 0 0 16px;
-}
-
-label span {
-  display: block;
-  color: #bbb;
-  margin-bottom: 4px;
+    cursor: pointer;
 }
 
 .error {
-  color: #ff9b9b;
+    color: #ff9999;
 }
 
 .notice {
-  color: #9be39b;
+    color: #99ff99;
 }
 
 .muted {
-  color: #666;
+    color: #777;
 }
 
-@media (min-width: 768px) {
-  body {
-    padding: 32px 32px 72px;
-    font-size: 21px;
-  }
+/* =======================================================
+   Ark
+   ======================================================= */
 
-  .content {
+#screen {
+
+    width: 100%;
+
     max-width: 900px;
-  }
+
+    margin: 0 auto;
+
+}
+
+#command {
+
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+
+    min-height: 100vh;
+
+}
+
+body.editing #query {
+
+    font-size: 1.3rem;
+
+    text-align: left;
+
+    min-height: calc(100vh - 100px);
+
+}
+
+body.results #query {
+
+    font-size: 1rem;
+
+    text-align: left;
+
+}
+
+#query {
+
+    width: 100%;
+
+    padding: 0;
+
+    border: none;
+
+    resize: none;
+
+    overflow: hidden;
+
+    background: transparent;
+
+    color: inherit;
+
+    outline: none;
+
+    font: inherit;
+
+    font-size: 3rem;
+
+    text-align: center;
+
+}
+
+body.editing #query,
+body.results #query {
+
+    font-size: 1rem;
+
+    text-align: left;
+
+}
+
+#results {
+
+    padding-bottom: 80px;
+
+}
+
+.record {
+
+    padding: 32px 0;
+
+    border-bottom: 1px solid #333;
+
+}
+
+.record-type {
+
+    color: #777;
+
+    font-size: .8rem;
+
+    text-transform: uppercase;
+
+}
+
+.record-text {
+
+    margin: .5rem 0;
+
+    font-size: 1.5rem;
+
+}
+
+.record-meta {
+
+    color: #666;
+
+    font-size: .8rem;
+
+}
+
+body:not(.editing):not(.results) {
+
+    overflow: hidden;
+
 }

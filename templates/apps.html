@@ -1,18 +1,12 @@
 {% extends "base.html" %}
 
-{% block nav %}
-
-<a href="/">home</a> &gt; apps
-
-{% endblock %}
-
 {% block body %}
 
 <h1>Apps</h1>
 
-<nav class="big-links">
-
 {% for app in apps %}
+
+<p>
 
 <a href="/apps/{{ app.id }}/">
 
@@ -20,8 +14,8 @@
 
 </a>
 
-{% endfor %}
+</p>
 
-</nav>
+{% endfor %}
 
 {% endblock %}

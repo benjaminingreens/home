@@ -3,8 +3,7 @@ from .db import init as init_db
 
 def init():
 
-    DATA.mkdir(exist_ok=True)
-
-    WORKSPACES.mkdir(exist_ok=True)
+    DATA.mkdir(parents=True, exist_ok=True)
+    WORKSPACES.mkdir(parents=True, exist_ok=True)
 
     init_db()
