@@ -1,11 +1,14 @@
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-DATA = Path("/var/lib/home")
+DATA = Path(os.environ.get("HOME_DATA_DIR", "/var/lib/home"))
 
 DATABASE = DATA / "home.db"
 
 WORKSPACES = DATA / "workspaces"
 
 APPS = ROOT / "apps"
+
+SECRET_KEY = os.environ.get("HOME_SECRET_KEY")

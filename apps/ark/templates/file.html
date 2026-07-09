@@ -1,0 +1,802 @@
+{% extends "app.html" %}
+
+{% block body %}
+
+<div id="editorpane">
+
+<div id="filetitle">
+
+<button type="button" id="toggleEdit">reading</button>: {{ file_path }} <span id="saveStatus"></span>
+
+</div>
+
+<pre id="fileread">{% for line in file_lines %}<span class="line{% if loop.index0 == highlight_line %} hl{% endif %}">{{ line }}</span>
+{% endfor %}</pre>
+
+<div id="taWrap" style="display: none;">
+
+<form method="post" action="/apps/ark/save" id="fileform">
+
+<input type="hidden" name="path" value="{{ file_path }}">
+
+<textarea
+    name="content"
+    id="filecontent"
+    spellcheck="false"
+    autocomplete="off"
+>{{ file_content }}</textarea>
+
+</form>
+
+<div id="cursormeasure" aria-hidden="true"></div>
+
+<div id="blockcursor"></div>
+
+</div>
+
+<div id="helpview" style="display: none;">
+
+<div><span class="key">click</span> title toggles reading / writing</div>
+
+<div><span class="key">ctrl+s</span> save (stays in edit)</div>
+
+<div><span class="key">esc</span> save &amp; exit edit &middot; close this help</div>
+
+<div><span class="key">ctrl+h</span> toggle this help</div>
+
+<div><span class="key">ctrl+m</span> toggle vim-style modal editing (block cursor = normal, thin cursor = insert)</div>
+
+<div>&mdash; modal editing (basic) &mdash;</div>
+
+<div><span class="key">i a I A</span> insert before / after / line start / line end</div>
+
+<div><span class="key">o O</span> open line below / above</div>
+
+<div><span class="key">h j k l</span> move left / down / up / right</div>
+
+<div><span class="key">w b e</span> word forward / back / end</div>
+
+<div><span class="key">0 / $</span> start / end of line</div>
+
+<div><span class="key">gg / G</span> start / end of file</div>
+
+<div><span class="key">x</span> delete character</div>
+
+<div><span class="key">r</span> replace character</div>
+
+<div><span class="key">~</span> toggle case</div>
+
+<div><span class="key">J</span> join line with next</div>
+
+<div><span class="key">dd / D</span> delete line / to end of line</div>
+
+<div><span class="key">yy</span> yank (copy) line</div>
+
+<div><span class="key">d / c / y + motion</span> e.g. dw, cw, de, db, dG&hellip;</div>
+
+<div><span class="key">p / P</span> paste after / before</div>
+
+<div><span class="key">u</span> undo</div>
+
+<div><span class="key">3j, 5dd, ...</span> a number before a command repeats it</div>
+
+<div><span class="key">esc</span> back to normal mode</div>
+
+</div>
+
+</div>
+
+<script>
+
+const HIGHLIGHT_LINE = {{ highlight_line if highlight_line is not none else -1 }};
+
+const toggleEdit = document.getElementById("toggleEdit");
+const fileread = document.getElementById("fileread");
+const taWrap = document.getElementById("taWrap");
+const form = document.getElementById("fileform");
+const textarea = document.getElementById("filecontent");
+const helpview = document.getElementById("helpview");
+const cursormeasure = document.getElementById("cursormeasure");
+const blockcursor = document.getElementById("blockcursor");
+const saveStatus = document.getElementById("saveStatus");
+let saveStatusTimer = null;
+
+let editing = false;
+let helpOpen = false;
+let modalOn = false;
+let vimMode = "normal";
+let pendingKey = null;
+let pendingOperator = null;
+let pendingReplace = false;
+let countBuffer = "";
+let register = "";
+let registerLinewise = false;
+let undoStack = [];
+
+function escapeHtml(s) {
+    return s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+}
+
+function autosize() {
+    textarea.style.height = "0px";
+    textarea.style.height = textarea.scrollHeight + "px";
+}
+
+function placeCursorAtHighlight() {
+    textarea.focus();
+
+    if (HIGHLIGHT_LINE < 0) return;
+
+    const lines = textarea.value.split("\n");
+    let offset = 0;
+
+    for (let i = 0; i < HIGHLIGHT_LINE && i < lines.length; i++) {
+        offset += lines[i].length + 1;
+    }
+
+    textarea.setSelectionRange(offset, offset);
+
+    const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 20;
+    textarea.scrollTop = Math.max(0, lineHeight * HIGHLIGHT_LINE - textarea.clientHeight / 2);
+}
+
+function scrollToHighlight() {
+    const hl = fileread.querySelector(".hl");
+    if (hl) hl.scrollIntoView({ block: "center" });
+}
+
+const MEASURE_PROPS = [
+    "fontFamily", "fontSize", "fontWeight", "letterSpacing", "lineHeight",
+    "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+    "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
+    "boxSizing",
+];
+
+function syncMeasurerStyle() {
+    const cs = getComputedStyle(textarea);
+    MEASURE_PROPS.forEach(prop => { cursormeasure.style[prop] = cs[prop]; });
+    cursormeasure.style.width = textarea.clientWidth + "px";
+}
+
+function updateBlockCursor() {
+    const showBlock = modalOn && editing && vimMode === "normal" && !helpOpen;
+
+    if (!editing || helpOpen) {
+        blockcursor.style.display = "none";
+        return;
+    }
+
+    if (document.activeElement !== textarea) textarea.focus();
+
+    textarea.style.caretColor = showBlock ? "transparent" : "";
+
+    if (!showBlock) {
+        blockcursor.style.display = "none";
+        return;
+    }
+
+    syncMeasurerStyle();
+
+    const val = textarea.value;
+    const pos = textarea.selectionStart;
+    const atChar = val[pos];
+
+    cursormeasure.textContent = "";
+    cursormeasure.appendChild(document.createTextNode(val.slice(0, pos)));
+
+    const marker = document.createElement("span");
+    marker.textContent = (!atChar || atChar === "\n") ? " " : atChar;
+    cursormeasure.appendChild(marker);
+    cursormeasure.appendChild(document.createTextNode(val.slice(pos + 1)));
+
+    const wrapRect = taWrap.getBoundingClientRect();
+    const markRect = marker.getBoundingClientRect();
+
+    blockcursor.style.display = "block";
+    blockcursor.style.left = (markRect.left - wrapRect.left) + "px";
+    blockcursor.style.top = (markRect.top - wrapRect.top) + "px";
+    blockcursor.style.width = markRect.width + "px";
+    blockcursor.style.height = markRect.height + "px";
+}
+
+function applyVisibility() {
+    if (helpOpen) {
+        fileread.style.display = "none";
+        taWrap.style.display = "none";
+        helpview.style.display = "block";
+        return;
+    }
+
+    helpview.style.display = "none";
+    fileread.style.display = editing ? "none" : "block";
+    taWrap.style.display = editing ? "block" : "none";
+}
+
+function setEditing(next) {
+    editing = next;
+    toggleEdit.textContent = editing ? "writing" : "reading";
+    applyVisibility();
+    pendingKey = null;
+    pendingOperator = null;
+    pendingReplace = false;
+    countBuffer = "";
+
+    if (editing) {
+        if (modalOn) vimMode = "normal";
+        autosize();
+        placeCursorAtHighlight();
+    }
+
+    updateBlockCursor();
+}
+
+function setHelp(next) {
+    helpOpen = next;
+    applyVisibility();
+}
+
+function showSaveStatus(text, isError) {
+    clearTimeout(saveStatusTimer);
+    saveStatus.textContent = text;
+    saveStatus.className = isError ? "error" : "notice";
+    saveStatusTimer = setTimeout(() => { saveStatus.textContent = ""; }, 2000);
+}
+
+function save() {
+    return fetch(form.action, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams(new FormData(form)),
+    }).then(res => {
+        if (!res.ok) throw new Error("save failed");
+
+        const lines = textarea.value.split("\n");
+        fileread.innerHTML = lines
+            .map(l => '<span class="line">' + escapeHtml(l) + "</span>")
+            .join("\n");
+
+        showSaveStatus("saved", false);
+    }).catch(() => {
+        showSaveStatus("save failed", true);
+    });
+}
+
+function lineBounds(pos) {
+    const val = textarea.value;
+    let start = val.lastIndexOf("\n", pos - 1) + 1;
+    let end = val.indexOf("\n", pos);
+    if (end === -1) end = val.length;
+    return [start, end];
+}
+
+function isSpace(c) {
+    return c === " " || c === "\n" || c === "\t";
+}
+
+function wordForward(pos) {
+    const val = textarea.value;
+    let i = pos;
+    while (i < val.length && !isSpace(val[i])) i++;
+    while (i < val.length && isSpace(val[i])) i++;
+    return i;
+}
+
+function wordBackward(pos) {
+    const val = textarea.value;
+    let i = pos;
+    if (i > 0) i--;
+    while (i > 0 && isSpace(val[i])) i--;
+    while (i > 0 && !isSpace(val[i - 1])) i--;
+    return i;
+}
+
+function wordEnd(pos) {
+    const val = textarea.value;
+    let i = pos + 1;
+    while (i < val.length && isSpace(val[i])) i++;
+    while (i < val.length - 1 && !isSpace(val[i + 1])) i++;
+    return Math.min(i, Math.max(val.length - 1, 0));
+}
+
+function pushUndo() {
+    undoStack.push({ value: textarea.value, pos: textarea.selectionStart });
+    if (undoStack.length > 100) undoStack.shift();
+}
+
+function popUndo() {
+    const snap = undoStack.pop();
+    if (!snap) return;
+    textarea.value = snap.value;
+    textarea.setSelectionRange(snap.pos, snap.pos);
+    autosize();
+}
+
+// Returns { to, linewise } for a motion key, or null if the key isn't a motion.
+function computeMotion(key, pos, count) {
+
+    if (key === "h" || key === "ArrowLeft") {
+        let p = pos;
+        for (let n = 0; n < count; n++) p = Math.max(0, p - 1);
+        return { to: p, linewise: false };
+    }
+
+    if (key === "l" || key === "ArrowRight") {
+        let p = pos;
+        for (let n = 0; n < count; n++) p = Math.min(textarea.value.length, p + 1);
+        return { to: p, linewise: false };
+    }
+
+    if (key === "j" || key === "ArrowDown") {
+        let p = pos;
+        for (let n = 0; n < count; n++) {
+            const [ls, le] = lineBounds(p);
+            const col = p - ls;
+            const nextStart = le + 1;
+            if (nextStart <= textarea.value.length) {
+                const [ns, ne] = lineBounds(nextStart);
+                p = Math.min(ns + col, ne);
+            }
+        }
+        return { to: p, linewise: true };
+    }
+
+    if (key === "k" || key === "ArrowUp") {
+        let p = pos;
+        for (let n = 0; n < count; n++) {
+            const [ls] = lineBounds(p);
+            if (ls > 0) {
+                const col = p - ls;
+                const [ps, pe] = lineBounds(ls - 1);
+                p = Math.min(ps + col, pe);
+            }
+        }
+        return { to: p, linewise: true };
+    }
+
+    if (key === "w") {
+        let p = pos;
+        for (let n = 0; n < count; n++) p = wordForward(p);
+        return { to: p, linewise: false };
+    }
+
+    if (key === "b") {
+        let p = pos;
+        for (let n = 0; n < count; n++) p = wordBackward(p);
+        return { to: p, linewise: false };
+    }
+
+    if (key === "e") {
+        let p = pos;
+        for (let n = 0; n < count; n++) p = wordEnd(p) + 1;
+        return { to: Math.min(p, textarea.value.length), linewise: false };
+    }
+
+    if (key === "0") {
+        return { to: lineBounds(pos)[0], linewise: false };
+    }
+
+    if (key === "$") {
+        return { to: lineBounds(pos)[1], linewise: false };
+    }
+
+    if (key === "G") {
+        return { to: lineBounds(textarea.value.length)[0], linewise: true };
+    }
+
+    return null;
+}
+
+function applyOperator(op, pos, motion) {
+
+    const v = textarea.value;
+    let from = Math.min(pos, motion.to);
+    let to = Math.max(pos, motion.to);
+
+    if (motion.linewise) {
+        from = lineBounds(from)[0];
+        to = Math.min(lineBounds(to)[1] + 1, v.length);
+    }
+
+    const text = v.slice(from, to);
+
+    if (op === "y") {
+        register = text;
+        registerLinewise = motion.linewise;
+        textarea.setSelectionRange(from, from);
+        return;
+    }
+
+    pushUndo();
+    register = text;
+    registerLinewise = motion.linewise;
+    textarea.value = v.slice(0, from) + v.slice(to);
+    textarea.setSelectionRange(from, from);
+    autosize();
+
+    if (op === "c") {
+        vimMode = "insert";
+    }
+}
+
+function applyLinewiseOperator(op, pos, count) {
+
+    const from = lineBounds(pos)[0];
+    let endPos = pos;
+
+    for (let n = 1; n < count; n++) {
+        const [, le] = lineBounds(endPos);
+        endPos = Math.min(le + 1, textarea.value.length);
+    }
+
+    const to = Math.min(lineBounds(endPos)[1] + 1, textarea.value.length);
+    const v = textarea.value;
+    const text = v.slice(from, to);
+
+    if (op === "y") {
+        register = text;
+        registerLinewise = true;
+        return;
+    }
+
+    pushUndo();
+    register = text;
+    registerLinewise = true;
+    textarea.value = v.slice(0, from) + v.slice(to);
+    textarea.setSelectionRange(from, from);
+    autosize();
+
+    if (op === "c") {
+        vimMode = "insert";
+    }
+}
+
+function handleNormalKey(e) {
+
+    if (e.key === "Escape") {
+        pendingKey = null;
+        pendingOperator = null;
+        pendingReplace = false;
+        countBuffer = "";
+        return false;
+    }
+
+    if (pendingReplace) {
+        pendingReplace = false;
+
+        if (e.key.length === 1) {
+            e.preventDefault();
+            pushUndo();
+            const v = textarea.value;
+            const pos = textarea.selectionStart;
+            if (pos < v.length) {
+                textarea.value = v.slice(0, pos) + e.key + v.slice(pos + 1);
+                textarea.setSelectionRange(pos, pos);
+            }
+        } else {
+            e.preventDefault();
+        }
+
+        return true;
+    }
+
+    if (/^[0-9]$/.test(e.key) && !(e.key === "0" && countBuffer === "")) {
+        e.preventDefault();
+        countBuffer += e.key;
+        return true;
+    }
+
+    const count = parseInt(countBuffer, 10) || 1;
+    countBuffer = "";
+
+    let pos = textarea.selectionStart;
+
+    if (pendingOperator) {
+        const op = pendingOperator;
+        pendingOperator = null;
+
+        if (e.key === op) {
+            e.preventDefault();
+            applyLinewiseOperator(op, pos, count);
+            return true;
+        }
+
+        const motion = computeMotion(e.key, pos, count);
+
+        if (motion) {
+            e.preventDefault();
+            applyOperator(op, pos, motion);
+            return true;
+        }
+
+        e.preventDefault();
+        return true;
+    }
+
+    if (pendingKey === "g") {
+        pendingKey = null;
+
+        if (e.key === "g") {
+            e.preventDefault();
+            textarea.setSelectionRange(0, 0);
+            textarea.scrollTop = 0;
+            return true;
+        }
+
+        e.preventDefault();
+        return true;
+    }
+
+    if (e.key === "d" || e.key === "c" || e.key === "y") {
+        e.preventDefault();
+        pendingOperator = e.key;
+        return true;
+    }
+
+    if (e.key === "g") {
+        e.preventDefault();
+        pendingKey = "g";
+        return true;
+    }
+
+    if (e.key === "r") {
+        e.preventDefault();
+        pendingReplace = true;
+        return true;
+    }
+
+    if (e.key === "i") {
+        e.preventDefault();
+        vimMode = "insert";
+        return true;
+    }
+
+    if (e.key === "a") {
+        e.preventDefault();
+        vimMode = "insert";
+        pos = Math.min(pos + 1, textarea.value.length);
+        textarea.setSelectionRange(pos, pos);
+        return true;
+    }
+
+    if (e.key === "I") {
+        e.preventDefault();
+        const [ls] = lineBounds(pos);
+        textarea.setSelectionRange(ls, ls);
+        vimMode = "insert";
+        return true;
+    }
+
+    if (e.key === "A") {
+        e.preventDefault();
+        const [, le] = lineBounds(pos);
+        textarea.setSelectionRange(le, le);
+        vimMode = "insert";
+        return true;
+    }
+
+    if (e.key === "o") {
+        e.preventDefault();
+        pushUndo();
+        const [, le] = lineBounds(pos);
+        const v = textarea.value;
+        textarea.value = v.slice(0, le) + "\n" + v.slice(le);
+        textarea.setSelectionRange(le + 1, le + 1);
+        autosize();
+        vimMode = "insert";
+        return true;
+    }
+
+    if (e.key === "O") {
+        e.preventDefault();
+        pushUndo();
+        const [ls] = lineBounds(pos);
+        const v = textarea.value;
+        textarea.value = v.slice(0, ls) + "\n" + v.slice(ls);
+        textarea.setSelectionRange(ls, ls);
+        autosize();
+        vimMode = "insert";
+        return true;
+    }
+
+    if (e.key === "J") {
+        e.preventDefault();
+        const v = textarea.value;
+        const [, le] = lineBounds(pos);
+        if (le < v.length) {
+            pushUndo();
+            const nextLineEnd = lineBounds(le + 1)[1];
+            textarea.value = v.slice(0, le) + " " + v.slice(le + 1, nextLineEnd) + v.slice(nextLineEnd);
+            textarea.setSelectionRange(le, le);
+            autosize();
+        }
+        return true;
+    }
+
+    if (e.key === "~") {
+        e.preventDefault();
+        const v = textarea.value;
+        if (pos < v.length) {
+            pushUndo();
+            const c = v[pos];
+            const swapped = c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase();
+            textarea.value = v.slice(0, pos) + swapped + v.slice(pos + 1);
+            textarea.setSelectionRange(pos + 1, pos + 1);
+        }
+        return true;
+    }
+
+    const motion = computeMotion(e.key, pos, count);
+
+    if (motion) {
+        e.preventDefault();
+        textarea.setSelectionRange(motion.to, motion.to);
+        if (e.key === "G") textarea.scrollTop = textarea.scrollHeight;
+        return true;
+    }
+
+    if (e.key === "x") {
+        e.preventDefault();
+        pushUndo();
+
+        for (let n = 0; n < count; n++) {
+            const v = textarea.value;
+            if (pos < v.length) {
+                register = v[pos];
+                registerLinewise = false;
+                textarea.value = v.slice(0, pos) + v.slice(pos + 1);
+                textarea.setSelectionRange(pos, pos);
+            }
+        }
+
+        autosize();
+        return true;
+    }
+
+    if (e.key === "D") {
+        e.preventDefault();
+        pushUndo();
+        const v = textarea.value;
+        const [, le] = lineBounds(pos);
+        register = v.slice(pos, le);
+        registerLinewise = false;
+        textarea.value = v.slice(0, pos) + v.slice(le);
+        textarea.setSelectionRange(pos, pos);
+        autosize();
+        return true;
+    }
+
+    if (e.key === "p") {
+        e.preventDefault();
+
+        if (register) {
+            pushUndo();
+            const v = textarea.value;
+
+            if (registerLinewise) {
+                const [, le] = lineBounds(pos);
+                const at = Math.min(le + 1, v.length);
+                textarea.value = v.slice(0, at) + register + v.slice(at);
+                textarea.setSelectionRange(at, at);
+            } else {
+                const at = Math.min(pos + 1, v.length);
+                textarea.value = v.slice(0, at) + register + v.slice(at);
+                textarea.setSelectionRange(at + register.length, at + register.length);
+            }
+
+            autosize();
+        }
+
+        return true;
+    }
+
+    if (e.key === "P") {
+        e.preventDefault();
+
+        if (register) {
+            pushUndo();
+            const v = textarea.value;
+
+            if (registerLinewise) {
+                const [ls] = lineBounds(pos);
+                textarea.value = v.slice(0, ls) + register + v.slice(ls);
+                textarea.setSelectionRange(ls, ls);
+            } else {
+                textarea.value = v.slice(0, pos) + register + v.slice(pos);
+                textarea.setSelectionRange(pos, pos + register.length);
+            }
+
+            autosize();
+        }
+
+        return true;
+    }
+
+    if (e.key === "u") {
+        e.preventDefault();
+        popUndo();
+        return true;
+    }
+
+    e.preventDefault();
+    return true;
+}
+
+toggleEdit.addEventListener("click", () => {
+    if (helpOpen) return;
+    setEditing(!editing);
+});
+
+textarea.addEventListener("input", () => { autosize(); updateBlockCursor(); });
+textarea.addEventListener("click", updateBlockCursor);
+
+document.addEventListener("selectionchange", () => {
+    if (document.activeElement === textarea) updateBlockCursor();
+});
+
+document.addEventListener("keydown", e => {
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "h") {
+        e.preventDefault();
+        setHelp(!helpOpen);
+        updateBlockCursor();
+        return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "m") {
+        e.preventDefault();
+        modalOn = !modalOn;
+        if (modalOn) {
+            if (!editing) setEditing(true);
+            vimMode = "normal";
+        }
+        updateBlockCursor();
+        return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        if (editing) save();
+        return;
+    }
+
+    if (modalOn && editing && vimMode === "normal" && !helpOpen) {
+        if (handleNormalKey(e)) {
+            setTimeout(updateBlockCursor, 0);
+            return;
+        }
+    }
+
+    if (e.key === "Escape") {
+
+        if (modalOn && editing && vimMode === "insert") {
+            e.preventDefault();
+            vimMode = "normal";
+            updateBlockCursor();
+            return;
+        }
+
+        if (helpOpen) {
+            e.preventDefault();
+            setHelp(false);
+            updateBlockCursor();
+            return;
+        }
+
+        if (editing) {
+            e.preventDefault();
+            save().then(() => setEditing(false));
+        }
+
+    }
+
+});
+
+setEditing(false);
+
+if (HIGHLIGHT_LINE >= 0) {
+    scrollToHighlight();
+}
+
+</script>
+
+{% endblock %}

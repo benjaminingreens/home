@@ -329,6 +329,11 @@ body.editing #field {
     color: #ccc;
 }
 
+#saveStatus {
+    font-style: italic;
+    margin-left: 8px;
+}
+
 #toggleEdit {
     padding: 0;
     border: none;

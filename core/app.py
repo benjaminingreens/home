@@ -1,6 +1,10 @@
+import secrets
+import warnings
+
 from .auth import current_user
 from pathlib import Path
 from .apps import load_apps, resolve_launch
+from .config import SECRET_KEY
 
 from flask import (
     Flask,
@@ -26,7 +30,14 @@ app = Flask(
 
 APPS = load_apps(app)
 
-app.secret_key = "development"
+if SECRET_KEY:
+    app.secret_key = SECRET_KEY
+else:
+    warnings.warn(
+        "HOME_SECRET_KEY is not set; using a random key for this process only. "
+        "Sessions will not persist across restarts. Set HOME_SECRET_KEY in production."
+    )
+    app.secret_key = secrets.token_hex(32)
 
 @app.get("/apps")
 def apps():

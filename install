@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DATA_DIR="${HOME_DATA_DIR:-$APP_DIR-data}"
+SERVICE_NAME="homeapp"
+SERVICE_FILE="$APP_DIR/systemd/$SERVICE_NAME.service"
+ENV_FILE="$APP_DIR/.env"
+SKIP_SYSTEMD="${SKIP_SYSTEMD:-0}"
+
+echo "Installing homeapp into $APP_DIR"
+echo "Data directory: $DATA_DIR"
+
+python3 -m venv "$APP_DIR/.venv"
+"$APP_DIR/.venv/bin/pip" install --upgrade pip
+"$APP_DIR/.venv/bin/pip" install -r "$APP_DIR/requirements.txt"
+
+mkdir -p "$DATA_DIR"
+
+if [ ! -f "$ENV_FILE" ]; then
+    echo "Generating $ENV_FILE with a fresh secret key"
+    {
+        echo "HOME_DATA_DIR=$DATA_DIR"
+        echo "HOME_SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+    } > "$ENV_FILE"
+    chmod 600 "$ENV_FILE"
+else
+    echo "$ENV_FILE already exists, leaving it as is"
+fi
+
+if [ "$SKIP_SYSTEMD" = "1" ] || ! command -v systemctl >/dev/null 2>&1; then
+    echo
+    echo "Skipping systemd setup. To install the service later:"
+    echo "  sudo cp $SERVICE_FILE /etc/systemd/system/$SERVICE_NAME.service"
+    echo "  sudo systemctl daemon-reload"
+    echo "  sudo systemctl enable --now $SERVICE_NAME"
+else
+    echo
+    echo "Installing systemd service (requires sudo)"
+    sudo cp "$SERVICE_FILE" "/etc/systemd/system/$SERVICE_NAME.service"
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now "$SERVICE_NAME"
+    sudo systemctl status "$SERVICE_NAME" --no-pager || true
+fi
+
+echo
+echo "Done. The app listens on 127.0.0.1:8001 only."
+echo "Point a reverse proxy (e.g. Caddy) at it for the public domain + TLS."
+echo "Logs: sudo journalctl -u $SERVICE_NAME -f"
