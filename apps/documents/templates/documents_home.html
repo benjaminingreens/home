@@ -13,7 +13,7 @@
 <textarea
     id="query"
     name="query"
-    placeholder="Type a tag&hellip;"
+    placeholder="Type a tag, or &#39;new &lt;file&gt;&#39;&hellip;"
     spellcheck="false"
     autocomplete="off"
     autofocus></textarea>
@@ -25,8 +25,6 @@
 </form>
 
 </div>
-
-<div id="hint"></div>
 
 {% if selected %}
 
@@ -48,19 +46,15 @@
 
 {% for note in notes %}
 
-<div class="record">
+<a class="record" href="/apps/ark/?file={{ note.path }}&app=Documents&home=/apps/documents/&find={{ note.content | urlencode }}">
 
-<div class="record-type">note</div>
+<span class="record-text">{{ note.content }}</span>
 
-<div class="record-text">{{ note.content }}</div>
+<span class="record-dots"></span>
 
-<div class="record-meta">
+<span class="record-meta">{% for t in note.tags %}#{{ t }} {% endfor %}</span>
 
-{{ note.path }}{% if note.tags %} &middot; {% for t in note.tags %}#{{ t }} {% endfor %}{% endif %}
-
-</div>
-
-</div>
+</a>
 
 {% endfor %}
 
@@ -84,8 +78,6 @@ const form = document.getElementById("command");
 
 const query = document.getElementById("query");
 
-const hint = document.getElementById("hint");
-
 const mBefore = document.getElementById("mBefore");
 
 const mCursor = document.getElementById("mCursor");
@@ -107,16 +99,6 @@ function bestTagMatch(token) {
     if (!token) return null;
 
     return TAGS.find(t => t.toLowerCase().startsWith(token)) || null;
-
-}
-
-function restartBlink() {
-
-    mCursor.style.animation = "none";
-
-    void mCursor.offsetWidth;
-
-    mCursor.style.animation = "";
 
 }
 
@@ -160,8 +142,6 @@ function renderMirror() {
 
     }
 
-    restartBlink();
-
     const atEnd = pos === val.length && collapsed;
 
     const trimmed = val.trim();
@@ -172,7 +152,11 @@ function renderMirror() {
 
     if (ghostTag && ghostTag.toLowerCase().startsWith(token.toLowerCase())) {
 
-        mGhost.textContent = ghostTag.slice(token.length);
+        const rest = ghostTag.toLowerCase().slice(token.length);
+
+        mCursor.textContent = rest.slice(0, 1) || " ";
+        mCursor.classList.remove("hidden");
+        mGhost.textContent = rest.slice(1);
 
     } else {
 
@@ -184,26 +168,6 @@ function renderMirror() {
 
 }
 
-function renderHint() {
-
-    if (ghostTag) {
-
-        hint.textContent = "⏎ add · tab complete";
-
-    } else if (query.value.trim()) {
-
-        hint.textContent = "⏎ add";
-
-    } else {
-
-        hint.textContent = "";
-
-    }
-
-    hint.classList.toggle("visible", hint.textContent !== "");
-
-}
-
 function update() {
 
     query.style.height = "0px";
@@ -212,15 +176,13 @@ function update() {
 
     renderMirror();
 
-    renderHint();
-
 }
 
 function acceptGhost() {
 
     if (!ghostTag) return false;
 
-    query.value = ghostTag;
+    query.value = ghostTag.toLowerCase();
 
     query.selectionStart = query.selectionEnd = query.value.length;
 

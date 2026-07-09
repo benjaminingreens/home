@@ -1,0 +1,10 @@
+<nav class="topbar">
+
+<a href="{{ app_home or '/' }}" class="topbar-app">{{ (app_label or "home") | lower }}</a>
+
+{% if user %}
+<a href="/" class="topbar-user">{{ user["username"] | lower }}</a>
+<a href="/logout">logout</a>
+{% endif %}
+
+</nav>

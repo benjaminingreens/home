@@ -14,9 +14,7 @@
 
 <body class="{{ page_class }}">
 
-{% if user %}
-<div class="session">{{ user["username"] }} &middot; {{ app_label }}</div>
-{% endif %}
+{% include "_topbar.html" %}
 
 {% block body %}
 {% endblock %}

@@ -1,12 +1,25 @@
 html {
     box-sizing: border-box;
     background: #000;
+    overflow-x: hidden;
 }
 
 *,
 *::before,
 *::after {
     box-sizing: inherit;
+}
+
+html,
+body {
+    scrollbar-width: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
 }
 
 body {
@@ -24,19 +37,20 @@ body {
         "Liberation Mono",
         "Courier New",
         monospace;
-    font-size: 20px;
+    font-size: 26px;
     line-height: 1.65;
+    overflow-x: hidden;
 }
 
 :root {
-    --input-font-size: 2.1rem;
+    --input-font-size: 2.3rem;
     --input-line-height: 1.5;
+    --section-gap: 48px;
 }
 
 .content {
     width: 100%;
-    max-width: 900px;
-    margin: 0 auto;
+    margin: 0;
 }
 
 a {
@@ -46,12 +60,6 @@ a {
 
 a:hover {
     text-decoration: none;
-}
-
-.topbar {
-    margin-bottom: 48px;
-    color: #888;
-    font-style: italic;
 }
 
 .big-links a {
@@ -98,24 +106,43 @@ button {
 }
 
 /* =======================================================
+   Topbar
+   ======================================================= */
+
+.topbar {
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+    margin-bottom: var(--section-gap);
+    font-size: 2rem;
+    font-style: italic;
+}
+
+.topbar a {
+    color: #888;
+    text-decoration: none;
+}
+
+.topbar a:hover {
+    color: #fff;
+    text-decoration: underline;
+}
+
+.topbar-user {
+    color: #666;
+}
+
+.topbar-app {
+    color: #fff;
+}
+
+/* =======================================================
    Terminal
    ======================================================= */
 
-.session {
-    position: fixed;
-    top: 16px;
-    right: 24px;
-    color: #888;
-    font-style: italic;
-    font-size: .8rem;
-    pointer-events: none;
-}
-
 #screen {
     width: 100%;
-    max-width: 900px;
-    margin: 0 auto;
-    padding-top: 56px;
+    margin: 0;
 }
 
 #prompt {
@@ -178,6 +205,11 @@ body.editing #field {
     color: #fff;
 }
 
+#field.stale #mBefore,
+#field.stale #mAfter {
+    color: #4a4a4a;
+}
+
 #mGhost {
     color: #4a4a4a;
 }
@@ -186,36 +218,16 @@ body.editing #field {
     background: #d9d9d9;
     color: #000;
     border-radius: 1px;
-    animation: blink 1s steps(1) infinite;
 }
 
 #field:not(.focused) #mCursor,
 #mCursor.hidden {
     background: transparent;
     color: transparent;
-    animation: none;
-}
-
-@keyframes blink {
-    50% { opacity: 0; }
-}
-
-#hint {
-    margin: 10px 0 0;
-    min-height: 1.2em;
-    color: #666;
-    font-size: .75rem;
-    font-style: italic;
-    visibility: hidden;
-}
-
-#hint.visible {
-    visibility: visible;
 }
 
 #selected {
-    margin-top: 24px;
-    font-size: 1.1rem;
+    margin-top: var(--section-gap);
 }
 
 #selected a {
@@ -228,32 +240,164 @@ body.editing #field {
 }
 
 #results {
-    margin-top: 56px;
+    margin-top: var(--section-gap);
     padding-bottom: 80px;
 }
 
-.record {
-    margin-bottom: 40px;
+#selected + #results {
+    margin-top: 14px;
 }
 
-.record:last-child {
-    margin-bottom: 0;
+.record {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 14px;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.record:hover .record-text {
+    text-decoration: underline;
 }
 
 .record-type {
-    color: #666;
-    font-size: .7rem;
-    letter-spacing: .12em;
+    flex: 0 0 auto;
+    width: 4ch;
     text-transform: uppercase;
 }
 
+.record-type-todo {
+    color: #6fb3ff;
+}
+
+.record-type-note {
+    color: #7fe28a;
+}
+
+.record-type-evnt {
+    color: #ff8f8f;
+}
+
 .record-text {
-    margin: .3rem 0;
-    font-size: 1.6rem;
-    line-height: 1.4;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.record-dots {
+    flex: 1 1 0;
+    min-width: 20px;
+    align-self: center;
+    overflow: hidden;
+    white-space: nowrap;
+    letter-spacing: .03em;
+    color: #3a3a3a;
+    position: relative;
+    top: .2em;
+}
+
+.record-dots::before {
+    content: ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .";
 }
 
 .record-meta {
+    flex: 0 1 auto;
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: #555;
-    font-size: .75rem;
+    text-align: right;
+}
+
+.message {
+    margin: var(--section-gap) 0 0;
+    font-style: italic;
+    color: #888;
+    white-space: pre-wrap;
+}
+
+/* =======================================================
+   File view
+   ======================================================= */
+
+#filetitle {
+    margin-bottom: var(--section-gap);
+    color: #ccc;
+}
+
+#toggleEdit {
+    padding: 0;
+    border: none;
+    background: none;
+    color: #fff;
+    text-decoration: underline;
+    font: inherit;
+    cursor: pointer;
+}
+
+#fileread {
+    margin: 0;
+    width: 100%;
+}
+
+.line.hl {
+    display: inline-block;
+    width: 100%;
+    background: #f2d94e;
+    color: #000;
+}
+
+#taWrap {
+    position: relative;
+}
+
+#filecontent {
+    display: block;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    border: none;
+    outline: none;
+    resize: none;
+    overflow: hidden;
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    line-height: 1.65;
+}
+
+#cursormeasure {
+    position: absolute;
+    top: 0;
+    left: 0;
+    visibility: hidden;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    margin: 0;
+}
+
+#blockcursor {
+    position: absolute;
+    display: none;
+    background: #d9d9d9;
+    mix-blend-mode: difference;
+    pointer-events: none;
+}
+
+#helpview div {
+    margin-bottom: 16px;
+}
+
+#helpview .key {
+    color: #f2d94e;
+    display: inline-block;
+    min-width: 3em;
+}
+
+#editorpane {
+    padding-bottom: 2.5em;
 }

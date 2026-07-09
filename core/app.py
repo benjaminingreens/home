@@ -11,7 +11,7 @@ from flask import (
 )
 
 from .storage import init
-from .auth import login
+from .auth import login, logout
 from .users import create
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -25,8 +25,6 @@ app = Flask(
 )
 
 APPS = load_apps(app)
-
-from apps.ark import routes as ark_routes
 
 app.secret_key = "development"
 
@@ -42,6 +40,8 @@ def apps():
         "apps.html",
         title="Apps",
         user=user,
+        app_label="apps",
+        app_home="/apps",
         apps=APPS,
     )
 
@@ -54,8 +54,8 @@ def index():
     if not user:
         return redirect("/login")
 
-    records = []
     query = ""
+    message = ""
 
     if request.method == "POST":
         query = request.form.get("query", "").strip()
@@ -67,21 +67,15 @@ def index():
             if app_id:
                 return redirect(f"/apps/{app_id}/")
 
-            _, workspace = ark_routes.ark_workspace()
-
-            added, records = ark_routes.process(workspace, query)
-
-            if added:
-                return redirect("/")
-
-    page_class = "results" if records else ""
+            message = "no such app"
 
     return render_template(
         "index.html",
         title="Home",
-        page_class=page_class,
+        page_class="",
         query=query,
-        records=records,
+        records=[],
+        message=message,
         user=user,
         app_label="home",
         apps=APPS,
@@ -103,6 +97,14 @@ def login_page():
         "login.html",
         title="Login",
     )
+
+
+@app.get("/logout")
+def logout_page():
+
+    logout()
+
+    return redirect("/login")
 
 
 @app.route("/register", methods=["GET","POST"])

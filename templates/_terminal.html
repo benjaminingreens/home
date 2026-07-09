@@ -22,7 +22,11 @@
 
 </div>
 
-<div id="hint"></div>
+{% if message %}
+
+<div class="message">{{ message }}</div>
+
+{% endif %}
 
 {% if records %}
 
@@ -30,27 +34,17 @@
 
 {% for record in records %}
 
-<div class="record">
+<a class="record" href="/apps/ark/?file={{ record.path }}&find={{ record.text | urlencode }}">
 
-<div class="record-type">
+<span class="record-type record-type-{{ record.type }}">{{ record.type }}</span>
 
-{{ record.type }}
+<span class="record-text">{{ record.text }}</span>
 
-</div>
+<span class="record-dots"></span>
 
-<div class="record-text">
+<span class="record-meta">{{ record.meta }}</span>
 
-{{ record.text }}
-
-</div>
-
-<div class="record-meta">
-
-{{ record.meta }}
-
-</div>
-
-</div>
+</a>
 
 {% endfor %}
 
@@ -74,8 +68,6 @@ const field = document.getElementById("field");
 
 const query = document.getElementById("query");
 
-const hint = document.getElementById("hint");
-
 const mBefore = document.getElementById("mBefore");
 
 const mCursor = document.getElementById("mCursor");
@@ -86,7 +78,11 @@ const mGhost = document.getElementById("mGhost");
 
 query.focus();
 
-query.selectionStart = query.selectionEnd = query.value.length;
+if (query.value) {
+    field.classList.add("stale");
+}
+
+query.selectionStart = query.selectionEnd = 0;
 
 let ghostMatch = null;
 
@@ -102,16 +98,6 @@ function bestAppMatch(token) {
         || a.name.toLowerCase().startsWith(token)
 
     ) || null;
-
-}
-
-function restartBlink() {
-
-    mCursor.style.animation = "none";
-
-    void mCursor.offsetWidth;
-
-    mCursor.style.animation = "";
 
 }
 
@@ -155,8 +141,6 @@ function renderMirror() {
 
     }
 
-    restartBlink();
-
     const atEnd = pos === val.length && collapsed;
 
     const trimmed = val.trim();
@@ -180,7 +164,11 @@ function renderMirror() {
 
     if (ghostMatch && ghostMatch.name.toLowerCase().startsWith(trimmed.toLowerCase())) {
 
-        mGhost.textContent = ghostMatch.name.slice(trimmed.length);
+        const rest = ghostMatch.name.toLowerCase().slice(trimmed.length);
+
+        mCursor.textContent = rest.slice(0, 1) || " ";
+        mCursor.classList.remove("hidden");
+        mGhost.textContent = rest.slice(1);
 
     } else {
 
@@ -189,30 +177,6 @@ function renderMirror() {
         mGhost.textContent = "";
 
     }
-
-}
-
-function renderHint() {
-
-    if (ghostMatch) {
-
-        hint.textContent = "⏎ open · tab complete";
-
-    } else if (body.classList.contains("editing")) {
-
-        hint.textContent = "ctrl+enter to save · esc to exit";
-
-    } else if (query.value.trim()) {
-
-        hint.textContent = "⏎ run";
-
-    } else {
-
-        hint.textContent = "";
-
-    }
-
-    hint.classList.toggle("visible", hint.textContent !== "");
 
 }
 
@@ -244,15 +208,13 @@ function update() {
 
     renderMirror();
 
-    renderHint();
-
 }
 
 function acceptGhost() {
 
     if (!ghostMatch) return false;
 
-    query.value = ghostMatch.name;
+    query.value = ghostMatch.name.toLowerCase();
 
     query.selectionStart = query.selectionEnd = query.value.length;
 
@@ -263,6 +225,27 @@ function acceptGhost() {
 }
 
 query.addEventListener("keydown", e => {
+
+    if (
+        field.classList.contains("stale")
+        && e.key !== "Tab"
+        && e.key !== "Escape"
+        && e.key !== "ArrowLeft"
+        && e.key !== "ArrowRight"
+        && e.key !== "ArrowUp"
+        && e.key !== "ArrowDown"
+        && e.key !== "Home"
+        && e.key !== "End"
+        && !e.ctrlKey
+        && !e.metaKey
+        && !e.altKey
+    ) {
+
+        field.classList.remove("stale");
+        query.value = "";
+        query.selectionStart = query.selectionEnd = 0;
+
+    }
 
     if (e.key === "Escape") {
 
