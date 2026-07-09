@@ -16,11 +16,12 @@ from flask import (
 
 from .storage import init
 from .auth import login, logout
-from .users import create
+from .users import ensure_admin
 
 ROOT = Path(__file__).resolve().parent.parent
 
 init()
+ensure_admin()
 
 app = Flask(
     __name__,
@@ -38,6 +39,25 @@ else:
         "Sessions will not persist across restarts. Set HOME_SECRET_KEY in production."
     )
     app.secret_key = secrets.token_hex(32)
+
+
+EXEMPT_PATHS = ("/login", "/logout", "/register")
+
+
+@app.before_request
+def enforce_password_change():
+
+    if request.path.startswith("/static/"):
+        return
+
+    if request.path in EXEMPT_PATHS or request.path.startswith("/apps/settings"):
+        return
+
+    user = current_user()
+
+    if user and user["must_change_password"]:
+        return redirect("/apps/settings/")
+
 
 @app.get("/apps")
 def apps():
@@ -118,19 +138,8 @@ def logout_page():
     return redirect("/login")
 
 
-@app.route("/register", methods=["GET","POST"])
+@app.get("/register")
 def register():
-
-    if request.method == "POST":
-
-        create(
-            request.form["username"],
-            request.form["password"],
-        )
-
-        return redirect("/login")
-
-    return render_template(
-        "register.html",
-        title="Register",
-    )
+    # Public self-registration is disabled. Accounts are created by an
+    # admin from within Settings.
+    return redirect("/login")

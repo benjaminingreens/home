@@ -37,3 +37,11 @@ def init():
         );
 
         """)
+
+        columns = {row["name"] for row in con.execute("PRAGMA table_info(users)")}
+
+        if "is_admin" not in columns:
+            con.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+
+        if "must_change_password" not in columns:
+            con.execute("ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0")

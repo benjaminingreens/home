@@ -29,16 +29,18 @@ def verify_password(password, stored):
     return hash_password(password, salt) == stored
 
 
-def create(username, password):
+def create(username, password, is_admin=False, must_change_password=False):
+
+    username = username.strip().lower()
 
     with connect() as con:
 
         con.execute(
             """
-            INSERT INTO users(username,password)
-            VALUES(?,?)
+            INSERT INTO users(username, password, is_admin, must_change_password)
+            VALUES (?, ?, ?, ?)
             """,
-            (username, hash_password(password)),
+            (username, hash_password(password), int(is_admin), int(must_change_password)),
         )
 
     create_workspace(username)
@@ -54,7 +56,7 @@ def authenticate(username, password):
             FROM users
             WHERE username=?
             """,
-            (username,),
+            (username.strip().lower(),),
         ).fetchone()
 
     if row is None:
@@ -71,3 +73,43 @@ def authenticate(username, password):
             )
 
     return row
+
+
+def update_password(user_id, new_password, must_change_password=False):
+
+    with connect() as con:
+
+        con.execute(
+            "UPDATE users SET password=?, must_change_password=? WHERE id=?",
+            (hash_password(new_password), int(must_change_password), user_id),
+        )
+
+
+def list_users():
+
+    with connect() as con:
+
+        return con.execute(
+            "SELECT id, username, is_admin, must_change_password FROM users ORDER BY username"
+        ).fetchall()
+
+
+def ensure_admin():
+
+    username = os.environ.get("HOME_ADMIN_USER")
+    password = os.environ.get("HOME_ADMIN_PASSWORD")
+
+    if not username or not password:
+        return
+
+    username = username.strip().lower()
+
+    with connect() as con:
+        existing = con.execute(
+            "SELECT id FROM users WHERE username=?", (username,)
+        ).fetchone()
+
+    if existing:
+        return
+
+    create(username, password, is_admin=True, must_change_password=True)

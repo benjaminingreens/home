@@ -68,3 +68,46 @@ def add(workspace, text):
 
     with inbox.open("a", encoding="utf-8") as f:
         f.write(text + "\n")
+
+
+def is_git_linked(workspace):
+    return (workspace / ".git").exists()
+
+
+def sync(workspace):
+
+    if not is_git_linked(workspace):
+        return False, "not a git-linked workspace"
+
+    def git(*args):
+        return subprocess.run(
+            ["git", *args],
+            cwd=workspace,
+            capture_output=True,
+            text=True,
+            stdin=subprocess.DEVNULL,
+        )
+
+    status = git("status", "--porcelain")
+
+    if status.returncode != 0:
+        return False, "git status failed: " + status.stderr.strip()
+
+    if status.stdout.strip():
+        git("add", "-A")
+        commit = git("commit", "-m", "sync: local changes")
+
+        if commit.returncode != 0:
+            return False, "commit failed: " + commit.stderr.strip()
+
+    pull = git("pull", "--no-edit")
+
+    if pull.returncode != 0:
+        return False, "pull failed: " + pull.stderr.strip()
+
+    push = git("push")
+
+    if push.returncode != 0:
+        return False, "push failed: " + push.stderr.strip()
+
+    return True, "synced"

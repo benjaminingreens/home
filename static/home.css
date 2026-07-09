@@ -68,6 +68,75 @@ a:hover {
     font-size: 2rem;
 }
 
+.authform {
+    margin-top: var(--section-gap);
+    max-width: 20em;
+}
+
+.authform label {
+    display: block;
+    margin-bottom: 28px;
+}
+
+.authform label span {
+    display: block;
+    color: #888;
+    font-style: italic;
+    margin-bottom: 8px;
+}
+
+.authform input {
+    display: block;
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid #333;
+    padding: 4px 0;
+    outline: none;
+}
+
+.authform input:focus {
+    border-bottom-color: #fff;
+}
+
+.authform button {
+    margin-top: 8px;
+    border: none;
+    border-bottom: 1px solid #666;
+    padding: 4px 0;
+    text-decoration: none;
+}
+
+.authform button:hover {
+    border-bottom-color: #fff;
+}
+
+.reset-form {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.reset-form input {
+    width: 10em;
+    border: none;
+    border-bottom: 1px solid #333;
+    padding: 0 0 2px;
+}
+
+.reset-form button {
+    border: none;
+    border-bottom: 1px solid #666;
+    padding: 0 0 2px;
+    background: none;
+    color: inherit;
+    font: inherit;
+}
+
+.reset-form button:hover {
+    border-bottom-color: #fff;
+}
+
 h1,
 h2,
 h3 {
@@ -334,7 +403,8 @@ body.editing #field {
     margin-left: 8px;
 }
 
-#toggleEdit {
+#toggleEdit,
+.linkbtn {
     padding: 0;
     border: none;
     background: none;
@@ -342,6 +412,14 @@ body.editing #field {
     text-decoration: underline;
     font: inherit;
     cursor: pointer;
+}
+
+.linkbtn:hover {
+    text-decoration: none;
+}
+
+#syncbar {
+    margin-bottom: 16px;
 }
 
 #fileread {
@@ -405,4 +483,55 @@ body.editing #field {
 
 #editorpane {
     padding-bottom: 2.5em;
+}
+
+/* =======================================================
+   Mobile
+   ======================================================= */
+
+@media (max-width: 640px) {
+
+    body {
+        padding: 16px;
+        font-size: 18px;
+    }
+
+    :root {
+        --input-font-size: 1.6rem;
+    }
+
+    .topbar {
+        flex-wrap: wrap;
+        gap: 12px 20px;
+        font-size: 1.3rem;
+        margin-bottom: 32px;
+    }
+
+    .record {
+        gap: 10px;
+    }
+
+    .record-type {
+        width: 3.4ch;
+    }
+
+    .record-meta {
+        max-width: 38%;
+    }
+
+    .record-dots {
+        letter-spacing: 0;
+    }
+
+    #results {
+        margin-top: 32px;
+    }
+
+    #selected {
+        margin-top: 32px;
+    }
+
+    .authform {
+        max-width: 100%;
+    }
 }

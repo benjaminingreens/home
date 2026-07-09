@@ -2,6 +2,14 @@
 
 {% block body %}
 
+{% if git_linked %}
+<div id="syncbar">
+<form method="post" action="/apps/ark/sync">
+<button type="submit" class="linkbtn">sync</button>
+</form>
+</div>
+{% endif %}
+
 {% include "_terminal.html" %}
 
 {% endblock %}

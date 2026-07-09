@@ -1,4 +1,5 @@
 from pathlib import Path
+from urllib.parse import urlencode
 
 from flask import render_template, request, redirect, abort
 
@@ -6,7 +7,7 @@ from core.auth import current_user
 from core.workspaces import app as app_workspace
 
 from . import bp, NAME
-from .runner import install, run, add
+from .runner import install, run, add, is_git_linked, sync
 
 
 def ark_workspace():
@@ -96,7 +97,13 @@ def home():
 
     records = []
     query = ""
-    message = "added" if request.args.get("added") else ""
+
+    if request.args.get("sync_msg") is not None:
+        message = request.args.get("sync_msg", "")
+    elif request.args.get("added"):
+        message = "added"
+    else:
+        message = ""
 
     if request.method == "POST":
         query = request.form.get("query", "").strip()
@@ -123,7 +130,22 @@ def home():
         app_label=NAME,
         app_home="/apps/ark/",
         apps=[],
+        git_linked=is_git_linked(workspace),
     )
+
+
+@bp.post("/sync")
+def sync_route():
+    user, workspace = ark_workspace()
+
+    if not user:
+        return redirect("/login")
+
+    ok, sync_message = sync(workspace)
+
+    qs = urlencode({"sync_msg": sync_message, "sync_ok": int(ok)})
+
+    return redirect(f"/apps/ark/?{qs}")
 
 
 @bp.post("/save")

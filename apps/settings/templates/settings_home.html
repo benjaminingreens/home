@@ -1,0 +1,93 @@
+{% extends "app.html" %}
+
+{% block body %}
+
+<h1>settings</h1>
+
+{% if message %}
+<p class="notice">{{ message }}</p>
+{% endif %}
+
+{% if error %}
+<p class="error">{{ error }}</p>
+{% endif %}
+
+{% if user.must_change_password %}
+<p class="error">you must change your password before continuing</p>
+{% endif %}
+
+<h2>change password</h2>
+
+<form method="post" class="authform">
+
+<input type="hidden" name="action" value="change_password">
+
+<label>
+<span>current password</span>
+<input name="current_password" type="password" autocomplete="current-password">
+</label>
+
+<label>
+<span>new password</span>
+<input name="new_password" type="password" autocomplete="new-password">
+</label>
+
+<label>
+<span>confirm new password</span>
+<input name="confirm_password" type="password" autocomplete="new-password">
+</label>
+
+<button type="submit">change password</button>
+
+</form>
+
+{% if user.is_admin %}
+
+<h2>create account</h2>
+
+<form method="post" class="authform">
+
+<input type="hidden" name="action" value="create_user">
+
+<label>
+<span>username</span>
+<input name="new_username" autocomplete="off">
+</label>
+
+<label>
+<span>default password</span>
+<input name="new_user_password" autocomplete="off">
+</label>
+
+<button type="submit">create account</button>
+
+</form>
+
+<h2>accounts</h2>
+
+<div id="results">
+
+{% for u in all_users %}
+
+<div class="record">
+
+<span class="record-text">{{ u.username }}{% if u.is_admin %} (admin){% endif %}{% if u.must_change_password %} &middot; <span class="muted">must change password</span>{% endif %}</span>
+
+<span class="record-dots"></span>
+
+<form method="post" class="reset-form">
+<input type="hidden" name="action" value="reset_user_password">
+<input type="hidden" name="user_id" value="{{ u.id }}">
+<input name="reset_password" placeholder="new password" autocomplete="off">
+<button type="submit">reset</button>
+</form>
+
+</div>
+
+{% endfor %}
+
+</div>
+
+{% endif %}
+
+{% endblock %}
