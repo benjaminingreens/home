@@ -1,0 +1,306 @@
+{% extends "app.html" %}
+
+{% block body %}
+
+<div id="screen">
+
+<div id="prompt">
+
+<form id="command" method="post">
+
+<div id="field">
+
+<textarea
+    id="query"
+    name="query"
+    placeholder="Type a tag&hellip;"
+    spellcheck="false"
+    autocomplete="off"
+    autofocus></textarea>
+
+<div id="mirror" aria-hidden="true"><span id="mBefore"></span><span id="mCursor">&nbsp;</span><span id="mAfter"></span><span id="mGhost"></span></div>
+
+</div>
+
+</form>
+
+</div>
+
+<div id="hint"></div>
+
+{% if selected %}
+
+<div id="selected">
+
+{% for s in selected %}
+
+<a href="{{ s.remove_href }}">#{{ s.tag }} &times;</a>
+
+{% endfor %}
+
+</div>
+
+{% endif %}
+
+{% if notes %}
+
+<div id="results">
+
+{% for note in notes %}
+
+<div class="record">
+
+<div class="record-type">note</div>
+
+<div class="record-text">{{ note.content }}</div>
+
+<div class="record-meta">
+
+{{ note.path }}{% if note.tags %} &middot; {% for t in note.tags %}#{{ t }} {% endfor %}{% endif %}
+
+</div>
+
+</div>
+
+{% endfor %}
+
+</div>
+
+{% elif selected %}
+
+<div class="muted" style="margin-top: 32px;">no notes match these tags</div>
+
+{% endif %}
+
+</div>
+
+<script>
+
+const TAGS = {{ (available or []) | tojson }};
+
+const field = document.getElementById("field");
+
+const form = document.getElementById("command");
+
+const query = document.getElementById("query");
+
+const hint = document.getElementById("hint");
+
+const mBefore = document.getElementById("mBefore");
+
+const mCursor = document.getElementById("mCursor");
+
+const mAfter = document.getElementById("mAfter");
+
+const mGhost = document.getElementById("mGhost");
+
+query.focus();
+
+query.selectionStart = query.selectionEnd = query.value.length;
+
+let ghostTag = null;
+
+function bestTagMatch(token) {
+
+    token = token.toLowerCase().replace(/^#/, "");
+
+    if (!token) return null;
+
+    return TAGS.find(t => t.toLowerCase().startsWith(token)) || null;
+
+}
+
+function restartBlink() {
+
+    mCursor.style.animation = "none";
+
+    void mCursor.offsetWidth;
+
+    mCursor.style.animation = "";
+
+}
+
+function renderMirror() {
+
+    const val = query.value;
+
+    const pos = query.selectionStart;
+
+    const collapsed = pos === query.selectionEnd;
+
+    mBefore.textContent = val.slice(0, pos);
+
+    if (!collapsed) {
+
+        mCursor.textContent = " ";
+
+        mCursor.classList.add("hidden");
+
+        mAfter.textContent = val.slice(pos);
+
+    } else {
+
+        mCursor.classList.remove("hidden");
+
+        const atChar = val[pos];
+
+        if (atChar) {
+
+            mCursor.textContent = atChar;
+
+            mAfter.textContent = val.slice(pos + 1);
+
+        } else {
+
+            mCursor.textContent = " ";
+
+            mAfter.textContent = "";
+
+        }
+
+    }
+
+    restartBlink();
+
+    const atEnd = pos === val.length && collapsed;
+
+    const trimmed = val.trim();
+
+    const token = trimmed.replace(/^#/, "");
+
+    ghostTag = (atEnd && token) ? bestTagMatch(token) : null;
+
+    if (ghostTag && ghostTag.toLowerCase().startsWith(token.toLowerCase())) {
+
+        mGhost.textContent = ghostTag.slice(token.length);
+
+    } else {
+
+        ghostTag = null;
+
+        mGhost.textContent = "";
+
+    }
+
+}
+
+function renderHint() {
+
+    if (ghostTag) {
+
+        hint.textContent = "⏎ add · tab complete";
+
+    } else if (query.value.trim()) {
+
+        hint.textContent = "⏎ add";
+
+    } else {
+
+        hint.textContent = "";
+
+    }
+
+    hint.classList.toggle("visible", hint.textContent !== "");
+
+}
+
+function update() {
+
+    query.style.height = "0px";
+
+    query.style.height = query.scrollHeight + "px";
+
+    renderMirror();
+
+    renderHint();
+
+}
+
+function acceptGhost() {
+
+    if (!ghostTag) return false;
+
+    query.value = ghostTag;
+
+    query.selectionStart = query.selectionEnd = query.value.length;
+
+    update();
+
+    return true;
+
+}
+
+query.addEventListener("keydown", e => {
+
+    if (e.key === "Escape") {
+
+        query.value = "";
+
+        query.selectionStart = query.selectionEnd = 0;
+
+        update();
+
+        return;
+
+    }
+
+    if (e.key === "Tab" && ghostTag) {
+
+        e.preventDefault();
+
+        acceptGhost();
+
+        return;
+
+    }
+
+    if (
+
+        e.key === "ArrowRight"
+        && ghostTag
+        && query.selectionStart === query.value.length
+
+    ) {
+
+        e.preventDefault();
+
+        acceptGhost();
+
+        return;
+
+    }
+
+    if (e.key !== "Enter")
+        return;
+
+    e.preventDefault();
+
+    if (ghostTag) acceptGhost();
+
+    form.submit();
+
+});
+
+query.addEventListener("input", update);
+
+query.addEventListener("click", renderMirror);
+
+query.addEventListener("keyup", renderMirror);
+
+query.addEventListener("focus", () => field.classList.add("focused"));
+
+query.addEventListener("blur", () => field.classList.remove("focused"));
+
+document.addEventListener("selectionchange", () => {
+
+    if (document.activeElement === query) renderMirror();
+
+});
+
+field.classList.add("focused");
+
+update();
+
+</script>
+
+{% endblock %}

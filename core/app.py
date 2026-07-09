@@ -1,6 +1,6 @@
 from .auth import current_user
 from pathlib import Path
-from .apps import load_apps
+from .apps import load_apps, resolve_launch
 
 from flask import (
     Flask,
@@ -26,6 +26,8 @@ app = Flask(
 
 APPS = load_apps(app)
 
+from apps.ark import routes as ark_routes
+
 app.secret_key = "development"
 
 @app.get("/apps")
@@ -44,19 +46,45 @@ def apps():
     )
 
 
-@app.get("/")
+@app.route("/", methods=["GET", "POST"])
 def index():
 
     user = current_user()
 
     if not user:
-
         return redirect("/login")
+
+    records = []
+    query = ""
+
+    if request.method == "POST":
+        query = request.form.get("query", "").strip()
+
+        if query:
+
+            app_id = resolve_launch(query, APPS)
+
+            if app_id:
+                return redirect(f"/apps/{app_id}/")
+
+            _, workspace = ark_routes.ark_workspace()
+
+            added, records = ark_routes.process(workspace, query)
+
+            if added:
+                return redirect("/")
+
+    page_class = "results" if records else ""
 
     return render_template(
         "index.html",
         title="Home",
+        page_class=page_class,
+        query=query,
+        records=records,
         user=user,
+        app_label="home",
+        apps=APPS,
     )
 
 

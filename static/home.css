@@ -28,6 +28,11 @@ body {
     line-height: 1.65;
 }
 
+:root {
+    --input-font-size: 2.1rem;
+    --input-line-height: 1.5;
+}
+
 .content {
     width: 100%;
     max-width: 900px;
@@ -93,126 +98,162 @@ button {
 }
 
 /* =======================================================
-   Ark
+   Terminal
    ======================================================= */
 
+.session {
+    position: fixed;
+    top: 16px;
+    right: 24px;
+    color: #888;
+    font-style: italic;
+    font-size: .8rem;
+    pointer-events: none;
+}
+
 #screen {
-
     width: 100%;
-
     max-width: 900px;
-
     margin: 0 auto;
-
+    padding-top: 56px;
 }
 
-#command {
-
-    display: flex;
-
-    justify-content: center;
-
-    align-items: center;
-
-    min-height: 100vh;
-
+#prompt {
+    position: relative;
 }
 
-body.editing #query {
-
-    font-size: 1.3rem;
-
-    text-align: left;
-
-    min-height: calc(100vh - 100px);
-
+#field {
+    position: relative;
+    border-left: 2px solid transparent;
+    padding-left: 0;
+    transition: padding-left 150ms ease, border-color 150ms ease;
 }
 
-body.results #query {
-
-    font-size: 1rem;
-
-    text-align: left;
-
+body.editing #field {
+    border-left-color: #333;
+    padding-left: 16px;
 }
 
 #query {
-
+    position: relative;
+    z-index: 2;
+    display: block;
     width: 100%;
-
     padding: 0;
-
+    margin: 0;
     border: none;
-
+    box-shadow: none;
     resize: none;
-
     overflow: hidden;
-
     background: transparent;
-
-    color: inherit;
-
+    color: transparent;
+    caret-color: transparent;
     outline: none;
-
     font: inherit;
-
-    font-size: 3rem;
-
-    text-align: center;
-
+    font-size: var(--input-font-size);
+    line-height: var(--input-line-height);
+    text-align: left;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
-body.editing #query,
-body.results #query {
+#query::placeholder {
+    color: #4a4a4a;
+}
 
-    font-size: 1rem;
+#mirror {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: var(--input-font-size);
+    line-height: var(--input-line-height);
+    pointer-events: none;
+}
 
-    text-align: left;
+#mBefore,
+#mAfter {
+    color: #fff;
+}
 
+#mGhost {
+    color: #4a4a4a;
+}
+
+#mCursor {
+    background: #d9d9d9;
+    color: #000;
+    border-radius: 1px;
+    animation: blink 1s steps(1) infinite;
+}
+
+#field:not(.focused) #mCursor,
+#mCursor.hidden {
+    background: transparent;
+    color: transparent;
+    animation: none;
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
+}
+
+#hint {
+    margin: 10px 0 0;
+    min-height: 1.2em;
+    color: #666;
+    font-size: .75rem;
+    font-style: italic;
+    visibility: hidden;
+}
+
+#hint.visible {
+    visibility: visible;
+}
+
+#selected {
+    margin-top: 24px;
+    font-size: 1.1rem;
+}
+
+#selected a {
+    margin-right: 20px;
+    color: #ccc;
+}
+
+#selected a:hover {
+    color: #fff;
 }
 
 #results {
-
+    margin-top: 56px;
     padding-bottom: 80px;
-
 }
 
 .record {
+    margin-bottom: 40px;
+}
 
-    padding: 32px 0;
-
-    border-bottom: 1px solid #333;
-
+.record:last-child {
+    margin-bottom: 0;
 }
 
 .record-type {
-
-    color: #777;
-
-    font-size: .8rem;
-
+    color: #666;
+    font-size: .7rem;
+    letter-spacing: .12em;
     text-transform: uppercase;
-
 }
 
 .record-text {
-
-    margin: .5rem 0;
-
-    font-size: 1.5rem;
-
+    margin: .3rem 0;
+    font-size: 1.6rem;
+    line-height: 1.4;
 }
 
 .record-meta {
-
-    color: #666;
-
-    font-size: .8rem;
-
-}
-
-body:not(.editing):not(.results) {
-
-    overflow: hidden;
-
+    color: #555;
+    font-size: .75rem;
 }

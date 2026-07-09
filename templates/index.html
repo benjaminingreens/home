@@ -1,17 +1,7 @@
-{% extends "base.html" %}
+{% extends "app.html" %}
 
 {% block body %}
 
-<h1>{{ user["username"] }}</h1>
-
-<nav class="big-links">
-
-<a href="/apps">
-
-Apps
-
-</a>
-
-</nav>
+{% include "_terminal.html" %}
 
 {% endblock %}

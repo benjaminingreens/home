@@ -1,0 +1,358 @@
+<div id="screen">
+
+<div id="prompt">
+
+<form id="command" method="post">
+
+<div id="field">
+
+<textarea
+    id="query"
+    name="query"
+    placeholder="Search apps or run a command&hellip;"
+    spellcheck="false"
+    autocomplete="off"
+    autofocus>{{ query }}</textarea>
+
+<div id="mirror" aria-hidden="true"><span id="mBefore"></span><span id="mCursor">&nbsp;</span><span id="mAfter"></span><span id="mGhost"></span></div>
+
+</div>
+
+</form>
+
+</div>
+
+<div id="hint"></div>
+
+{% if records %}
+
+<div id="results">
+
+{% for record in records %}
+
+<div class="record">
+
+<div class="record-type">
+
+{{ record.type }}
+
+</div>
+
+<div class="record-text">
+
+{{ record.text }}
+
+</div>
+
+<div class="record-meta">
+
+{{ record.meta }}
+
+</div>
+
+</div>
+
+{% endfor %}
+
+</div>
+
+{% endif %}
+
+</div>
+
+<script>
+
+const APPS = {{ (apps or []) | tojson }};
+
+const EDIT_LENGTH_THRESHOLD = 60;
+
+const body = document.body;
+
+const form = document.getElementById("command");
+
+const field = document.getElementById("field");
+
+const query = document.getElementById("query");
+
+const hint = document.getElementById("hint");
+
+const mBefore = document.getElementById("mBefore");
+
+const mCursor = document.getElementById("mCursor");
+
+const mAfter = document.getElementById("mAfter");
+
+const mGhost = document.getElementById("mGhost");
+
+query.focus();
+
+query.selectionStart = query.selectionEnd = query.value.length;
+
+let ghostMatch = null;
+
+function bestAppMatch(token) {
+
+    token = token.toLowerCase();
+
+    if (!token) return null;
+
+    return APPS.find(a =>
+
+        a.id.toLowerCase().startsWith(token)
+        || a.name.toLowerCase().startsWith(token)
+
+    ) || null;
+
+}
+
+function restartBlink() {
+
+    mCursor.style.animation = "none";
+
+    void mCursor.offsetWidth;
+
+    mCursor.style.animation = "";
+
+}
+
+function renderMirror() {
+
+    const val = query.value;
+
+    const pos = query.selectionStart;
+
+    const collapsed = pos === query.selectionEnd;
+
+    mBefore.textContent = val.slice(0, pos);
+
+    if (!collapsed) {
+
+        mCursor.textContent = " ";
+
+        mCursor.classList.add("hidden");
+
+        mAfter.textContent = val.slice(pos);
+
+    } else {
+
+        mCursor.classList.remove("hidden");
+
+        const atChar = val[pos];
+
+        if (atChar && atChar !== "\n") {
+
+            mCursor.textContent = atChar;
+
+            mAfter.textContent = val.slice(pos + 1);
+
+        } else {
+
+            mCursor.textContent = " ";
+
+            mAfter.textContent = val.slice(pos);
+
+        }
+
+    }
+
+    restartBlink();
+
+    const atEnd = pos === val.length && collapsed;
+
+    const trimmed = val.trim();
+
+    if (
+
+        atEnd
+        && trimmed
+        && !trimmed.includes(" ")
+        && !trimmed.includes("\n")
+
+    ) {
+
+        ghostMatch = bestAppMatch(trimmed);
+
+    } else {
+
+        ghostMatch = null;
+
+    }
+
+    if (ghostMatch && ghostMatch.name.toLowerCase().startsWith(trimmed.toLowerCase())) {
+
+        mGhost.textContent = ghostMatch.name.slice(trimmed.length);
+
+    } else {
+
+        ghostMatch = null;
+
+        mGhost.textContent = "";
+
+    }
+
+}
+
+function renderHint() {
+
+    if (ghostMatch) {
+
+        hint.textContent = "⏎ open · tab complete";
+
+    } else if (body.classList.contains("editing")) {
+
+        hint.textContent = "ctrl+enter to save · esc to exit";
+
+    } else if (query.value.trim()) {
+
+        hint.textContent = "⏎ run";
+
+    } else {
+
+        hint.textContent = "";
+
+    }
+
+    hint.classList.toggle("visible", hint.textContent !== "");
+
+}
+
+function update() {
+
+    query.style.height = "0px";
+
+    query.style.height = query.scrollHeight + "px";
+
+    const text = query.value.trim();
+
+    if (
+
+        text.startsWith("note:")
+        || text.startsWith("todo:")
+        || text.startsWith("evnt:")
+        || text.includes("\n")
+        || text.length > EDIT_LENGTH_THRESHOLD
+
+    ) {
+
+        body.classList.add("editing");
+
+    } else {
+
+        body.classList.remove("editing");
+
+    }
+
+    renderMirror();
+
+    renderHint();
+
+}
+
+function acceptGhost() {
+
+    if (!ghostMatch) return false;
+
+    query.value = ghostMatch.name;
+
+    query.selectionStart = query.selectionEnd = query.value.length;
+
+    update();
+
+    return true;
+
+}
+
+query.addEventListener("keydown", e => {
+
+    if (e.key === "Escape") {
+
+        query.value = "";
+
+        query.selectionStart = query.selectionEnd = 0;
+
+        update();
+
+        return;
+
+    }
+
+    if (e.key === "Tab" && ghostMatch) {
+
+        e.preventDefault();
+
+        acceptGhost();
+
+        return;
+
+    }
+
+    if (
+
+        e.key === "ArrowRight"
+        && ghostMatch
+        && query.selectionStart === query.value.length
+
+    ) {
+
+        e.preventDefault();
+
+        acceptGhost();
+
+        return;
+
+    }
+
+    if (e.key !== "Enter")
+        return;
+
+    if (ghostMatch && !e.ctrlKey) {
+
+        e.preventDefault();
+
+        window.location.href = "/apps/" + ghostMatch.id + "/";
+
+        return;
+
+    }
+
+    if (body.classList.contains("editing")) {
+
+        if (e.ctrlKey) {
+
+            e.preventDefault();
+
+            form.submit();
+
+        }
+
+        return;
+
+    }
+
+    e.preventDefault();
+
+    form.submit();
+
+});
+
+query.addEventListener("input", update);
+
+query.addEventListener("click", renderMirror);
+
+query.addEventListener("keyup", renderMirror);
+
+query.addEventListener("focus", () => field.classList.add("focused"));
+
+query.addEventListener("blur", () => field.classList.remove("focused"));
+
+document.addEventListener("selectionchange", () => {
+
+    if (document.activeElement === query) renderMirror();
+
+});
+
+field.classList.add("focused");
+
+update();
+
+</script>

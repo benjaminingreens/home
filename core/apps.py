@@ -3,6 +3,8 @@ from pathlib import Path
 
 from .config import APPS
 
+REGISTRY = []
+
 
 def load_apps(app):
 
@@ -26,4 +28,34 @@ def load_apps(app):
             "description": getattr(module, "DESCRIPTION", ""),
         })
 
+    REGISTRY[:] = loaded
+
     return loaded
+
+
+def resolve_launch(query, apps):
+
+    token = query.strip()
+
+    if not token or " " in token or "\n" in token:
+        return None
+
+    token = token.lower()
+
+    exact = [
+        a for a in apps
+        if a["id"].lower() == token or a["name"].lower() == token
+    ]
+
+    if exact:
+        return exact[0]["id"]
+
+    prefix = [
+        a for a in apps
+        if a["id"].lower().startswith(token) or a["name"].lower().startswith(token)
+    ]
+
+    if len(prefix) == 1:
+        return prefix[0]["id"]
+
+    return None
