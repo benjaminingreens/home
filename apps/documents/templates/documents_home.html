@@ -26,13 +26,10 @@
 
 </div>
 
-{% if workspace_toggles|length > 1 %}
-
-<div style="margin-bottom: var(--section-gap);">
-<a href="/apps/documents/workspaces" class="linkbtn">workspaces</a>
-</div>
-
-{% endif %}
+<p class="muted" style="margin-bottom: var(--section-gap);">
+showing {{ visible_count }} of {{ total_count }} workspace{{ "s" if total_count != 1 }} &middot;
+<a href="/apps/documents/workspaces">change</a>
+</p>
 
 {% if selected %}
 

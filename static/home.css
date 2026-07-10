@@ -214,6 +214,23 @@ button {
     display: contents;
 }
 
+.topbar-select {
+    border: none;
+    background: none;
+    padding: 0;
+    color: #666;
+    font: inherit;
+    font-size: inherit;
+    font-style: normal;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.topbar-select:hover {
+    color: #fff;
+}
+
 .topbar-btn {
     border: none;
     background: none;

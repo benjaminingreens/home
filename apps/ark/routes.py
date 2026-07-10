@@ -220,7 +220,8 @@ def home():
         app_home="/apps/ark/",
         apps=[],
         git_linked=is_git_linked(workspace),
-        workspace_label=f"{record['group_name']} / {record['name']}",
+        workspace_options=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
+        active_workspace_id=record["id"],
     )
 
 
@@ -249,6 +250,18 @@ def workspaces_list():
                 core_groups.set_active_workspace(user["id"], record["id"])
 
                 return redirect("/apps/ark/workspace")
+
+            elif action == "create_personal":
+                name = request.form.get("personal_name", "").strip()
+
+                if not name:
+                    error = "name is required"
+                else:
+                    new_group_id = core_groups.create_group(name, user["id"])
+                    record = core_groups.create_workspace_record(new_group_id, "ark", "default", user["id"])
+                    core_groups.set_active_workspace(user["id"], record["id"])
+
+                    return redirect("/apps/ark/workspace")
 
         except (ValueError, PermissionError) as e:
             error = str(e)
@@ -333,6 +346,8 @@ def workspace_setup():
         error=error,
         message=message,
         workspace_label=f"{record['group_name']} / {record['name']}",
+        workspace_options=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
+        active_workspace_id=record["id"],
     )
 
 

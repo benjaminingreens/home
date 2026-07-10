@@ -75,6 +75,8 @@ def home():
         for t in selected
     ]
 
+    all_workspaces = core_groups.list_all_workspaces_with_visibility(user["id"], "ark")
+
     return render_template(
         "documents_home.html",
         user=user,
@@ -84,7 +86,8 @@ def home():
         available=available,
         notes=notes,
         show_origin=len(workspaces) > 1,
-        workspace_toggles=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
+        visible_count=len(workspaces),
+        total_count=len(all_workspaces),
     )
 
 
