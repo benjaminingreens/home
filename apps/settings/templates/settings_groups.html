@@ -1,0 +1,103 @@
+{% extends "app.html" %}
+
+{% block body %}
+
+<h1>settings</h1>
+
+{% include "_nav.html" %}
+
+{% if message %}
+<p class="notice">{{ message }}</p>
+{% endif %}
+
+{% if error %}
+<p class="error">{{ error }}</p>
+{% endif %}
+
+{% if pending_invites %}
+
+<h2>invites</h2>
+
+<div id="results">
+
+{% for g in pending_invites %}
+
+<div class="record">
+
+<span class="record-text">{{ g.name | lower }}</span>
+
+<span class="record-dots"></span>
+
+<form method="post" class="reset-form">
+<input type="hidden" name="action" value="respond_invite">
+<input type="hidden" name="group_id" value="{{ g.id }}">
+<input type="hidden" name="accept" value="1">
+<button type="submit">accept</button>
+</form>
+
+<form method="post" class="reset-form">
+<input type="hidden" name="action" value="respond_invite">
+<input type="hidden" name="group_id" value="{{ g.id }}">
+<input type="hidden" name="accept" value="0">
+<button type="submit">decline</button>
+</form>
+
+</div>
+
+{% endfor %}
+
+</div>
+
+<hr class="section-sep">
+
+{% endif %}
+
+<h2>groups</h2>
+
+<div id="results">
+
+{% for g in groups %}
+
+<div class="record">
+
+<span class="record-text">{{ g.name | lower }}{% if g.is_personal %} (personal){% endif %}</span>
+
+<span class="record-dots"></span>
+
+<span class="record-meta">{% for m in g.members %}{{ m.username }}{% if m.status == "invited" %} (invited){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</span>
+
+</div>
+
+{% if not g.is_personal %}
+
+<form method="post" class="reset-form" style="margin: 0 0 14px 0;">
+<input type="hidden" name="action" value="invite_member">
+<input type="hidden" name="group_id" value="{{ g.id }}">
+<select name="invitee_id">
+{% for u in g.invitable %}
+<option value="{{ u.id }}">{{ u.username }}</option>
+{% endfor %}
+</select>
+<button type="submit">invite</button>
+</form>
+
+{% endif %}
+
+{% endfor %}
+
+</div>
+
+<form method="post" class="authform">
+
+<input type="hidden" name="action" value="create_group">
+
+<label>
+<span>new group name</span>
+<input name="group_name" autocomplete="off">
+</label>
+
+<button type="submit">create group</button>
+
+</form>
+
+{% endblock %}

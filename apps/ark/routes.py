@@ -32,13 +32,33 @@ def resolve_active_workspace(user):
     return record
 
 
-def ark_workspace():
+def resolve_workspace(user, workspace_id=None):
+    """A specific workspace by id, checking the user is actually an active
+    member of the group that owns it - not just whichever workspace is
+    currently "active" in the terminal. Needed anywhere (e.g. a Documents
+    result link) that points at a workspace that isn't necessarily the
+    active one; using the active workspace unconditionally here was the
+    bug where clicking a shared-workspace note opened a same-named file
+    from the viewer's own personal workspace instead."""
+
+    if workspace_id is None:
+        return resolve_active_workspace(user)
+
+    record = core_groups.get_workspace(int(workspace_id))
+
+    if not record or not core_groups.require_active_member(user["id"], record["group_id"]):
+        abort(403)
+
+    return record
+
+
+def ark_workspace(workspace_id=None):
     user = current_user()
 
     if not user:
         return None, None, None
 
-    record = resolve_active_workspace(user)
+    record = resolve_workspace(user, workspace_id)
     workspace = core_workspaces.path(record["group_slug"], "ark", record["name"])
 
     return user, workspace, record
@@ -114,15 +134,16 @@ def process(workspace, query):
 
 @bp.route("/", methods=["GET", "POST"])
 def home():
-    user, workspace, record = ark_workspace()
+    file_path = request.args.get("file")
+    workspace_id = request.args.get("workspace") if file_path else None
+
+    user, workspace, record = ark_workspace(workspace_id)
 
     if not user:
         return redirect("/login")
 
-    if not workspace_ready(workspace):
+    if not file_path and not workspace_ready(workspace):
         return redirect("/apps/ark/workspace")
-
-    file_path = request.args.get("file")
 
     if file_path:
         target = safe_file(workspace, file_path)
@@ -151,6 +172,7 @@ def home():
             user=user,
             app_label=request.args.get("app", NAME),
             app_home=request.args.get("home", "/apps/ark/"),
+            workspace_id=record["id"],
         )
 
     records = []
@@ -330,7 +352,8 @@ def sync_route():
 
 @bp.post("/save")
 def save():
-    user, workspace, record = ark_workspace()
+    workspace_id = request.form.get("workspace")
+    user, workspace, record = ark_workspace(workspace_id)
 
     if not user:
         return redirect("/login")
@@ -342,4 +365,6 @@ def save():
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content, encoding="utf-8")
 
-    return redirect(f"/apps/ark/?file={relpath}")
+    qs = urlencode({"file": relpath, **({"workspace": workspace_id} if workspace_id else {})})
+
+    return redirect(f"/apps/ark/?{qs}")

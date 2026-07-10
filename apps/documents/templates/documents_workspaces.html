@@ -1,0 +1,39 @@
+{% extends "app.html" %}
+
+{% block body %}
+
+<h1>documents workspaces</h1>
+
+<p class="muted">choose which workspaces' notes show up in documents.</p>
+
+<div id="results">
+
+{% for w in workspace_toggles %}
+
+<div class="record">
+
+<span class="record-text">{{ w.group_name | lower }} / {{ w.name }}</span>
+
+<span class="record-dots"></span>
+
+<form method="post" action="/apps/documents/visibility" class="reset-form">
+<input type="hidden" name="workspace_id" value="{{ w.id }}">
+<input type="hidden" name="visible" value="{{ 0 if w.visible else 1 }}">
+<button type="submit">{{ "hide" if w.visible else "show" }}</button>
+</form>
+
+</div>
+
+{% else %}
+
+<p class="muted">no workspaces yet.</p>
+
+{% endfor %}
+
+</div>
+
+<p class="muted" style="margin-top: var(--section-gap);">
+<a href="/apps/documents/">back to documents</a>
+</p>
+
+{% endblock %}

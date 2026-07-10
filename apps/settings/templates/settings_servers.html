@@ -1,0 +1,53 @@
+{% extends "app.html" %}
+
+{% block body %}
+
+<h1>settings</h1>
+
+{% include "_nav.html" %}
+
+{% if message %}
+<p class="notice">{{ message }}</p>
+{% endif %}
+
+{% if error %}
+<p class="error">{{ error }}</p>
+{% endif %}
+
+<h2>connected servers</h2>
+
+<p class="muted">federation is schema-only right now &mdash; adding a server here
+just records it, nothing actually connects yet.</p>
+
+<div id="results">
+
+{% for s in federated_servers %}
+
+<div class="record">
+<span class="record-text">{{ s.host }}</span>
+<span class="record-dots"></span>
+<span class="record-meta">{{ s.status }}</span>
+</div>
+
+{% else %}
+
+<p class="muted">none added yet.</p>
+
+{% endfor %}
+
+</div>
+
+<form method="post" class="authform">
+
+<input type="hidden" name="action" value="add_server">
+
+<label>
+<span>server host</span>
+<input name="host" placeholder="home.example.com" autocomplete="off">
+</label>
+
+<button type="submit">add</button>
+
+</form>
+
+{% endblock %}

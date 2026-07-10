@@ -1,0 +1,44 @@
+{% extends "app.html" %}
+
+{% block body %}
+
+<h1>settings</h1>
+
+{% include "_nav.html" %}
+
+{% if message %}
+<p class="notice">{{ message }}</p>
+{% endif %}
+
+{% if error %}
+<p class="error">{{ error }}</p>
+{% endif %}
+
+<h2>visibility</h2>
+
+<p class="muted">who can see you when someone goes to invite a member to a group.</p>
+
+<form method="post" class="authform">
+
+<input type="hidden" name="action" value="set_visibility">
+
+<label style="display: flex; align-items: baseline; gap: 10px;">
+<input type="radio" name="visibility" value="private" {% if user.visibility == "private" %}checked{% endif %}>
+<span style="margin-bottom: 0;">private &mdash; not invitable by anyone</span>
+</label>
+
+<label style="display: flex; align-items: baseline; gap: 10px;">
+<input type="radio" name="visibility" value="server" {% if user.visibility == "server" or not user.visibility %}checked{% endif %}>
+<span style="margin-bottom: 0;">visible to this server</span>
+</label>
+
+<label style="display: flex; align-items: baseline; gap: 10px;">
+<input type="radio" name="visibility" value="federated" {% if user.visibility == "federated" %}checked{% endif %}>
+<span style="margin-bottom: 0;">visible to this server, and connected servers (federation not yet functional)</span>
+</label>
+
+<button type="submit">save</button>
+
+</form>
+
+{% endblock %}

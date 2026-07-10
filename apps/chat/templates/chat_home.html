@@ -1,0 +1,64 @@
+{% extends "app.html" %}
+
+{% block body %}
+
+<h1>chat</h1>
+
+{% if groups|length > 1 %}
+
+<form method="post" class="reset-form" style="margin-bottom: var(--section-gap);">
+<input type="hidden" name="action" value="switch">
+<select name="group_id" onchange="this.form.submit()">
+{% for g in groups %}
+<option value="{{ g.id }}" {% if active_group and g.id == active_group.id %}selected{% endif %}>{{ g.name | lower }}</option>
+{% endfor %}
+</select>
+</form>
+
+{% endif %}
+
+{% if active_group %}
+
+<div id="results">
+
+{% for m in messages %}
+
+<div class="record" style="white-space: normal;">
+
+<span class="record-text">{{ m.username }}: {{ m.text }}</span>
+
+<span class="record-dots"></span>
+
+<span class="record-meta">{{ m.timestamp }}</span>
+
+</div>
+
+{% else %}
+
+<p class="muted">no messages in {{ active_group.name | lower }} yet.</p>
+
+{% endfor %}
+
+</div>
+
+<form method="post" class="authform">
+
+<input type="hidden" name="action" value="send">
+
+<label>
+<span>message</span>
+<input name="text" autocomplete="off" autofocus>
+</label>
+
+<button type="submit">send</button>
+
+</form>
+
+{% else %}
+
+<p class="muted">you're not in any groups yet &mdash; create or join one in
+<a href="/apps/settings/groups">settings</a>.</p>
+
+{% endif %}
+
+{% endblock %}

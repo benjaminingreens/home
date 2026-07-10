@@ -4,6 +4,14 @@
 
 {% if workspace_label %}
 <a href="/apps/ark/workspaces" class="topbar-workspace">{{ workspace_label | lower }}</a>
+
+{% if git_linked %}
+<form method="post" action="/apps/ark/sync" class="topbar-form">
+<button type="submit" class="topbar-btn">sync</button>
+</form>
+{% elif git_linked is defined %}
+<a href="/apps/ark/workspace" class="topbar-workspace">link</a>
+{% endif %}
 {% endif %}
 
 {% if user %}

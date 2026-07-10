@@ -7,6 +7,8 @@
 <p class="muted">setting up: {{ workspace_label | lower }} &middot;
 <a href="/apps/ark/workspaces">switch workspace</a></p>
 
+<hr class="section-sep">
+
 {% if error %}
 <p class="error">{{ error }}</p>
 {% endif %}
@@ -19,15 +21,25 @@
 
 <p class="muted">this workspace hasn't been set up yet. where should its data come from?</p>
 
-<form method="post" class="authform">
+<div class="choice-group">
+
+<form method="post" class="choice">
 <input type="hidden" name="action" value="new">
-<button type="submit">create a new workspace on the server</button>
+<button type="submit">
+<strong>create new</strong>
+<span class="muted">start empty, right here on the server</span>
+</button>
 </form>
 
-<form method="post" class="authform">
+<form method="post" class="choice">
 <input type="hidden" name="action" value="start_link">
-<button type="submit">link an existing workspace</button>
+<button type="submit">
+<strong>link existing</strong>
+<span class="muted">connect a workspace you already have elsewhere</span>
+</button>
 </form>
+
+</div>
 
 {% elif state == "linking" %}
 
@@ -41,9 +53,9 @@ git push server main</pre>
 
 <p class="muted">once that's pushed, come back and finish linking:</p>
 
-<form method="post" class="authform">
+<form method="post">
 <input type="hidden" name="action" value="finish_link">
-<button type="submit">finish linking</button>
+<button type="submit" class="linkbtn">finish linking</button>
 </form>
 
 {% elif state == "upgrade" %}
@@ -51,9 +63,9 @@ git push server main</pre>
 <p class="muted">this workspace only exists on the server right now. you can
 give it a git remote so you can also work on it from another machine.</p>
 
-<form method="post" class="authform">
+<form method="post">
 <input type="hidden" name="action" value="enable_git">
-<button type="submit">enable local sync</button>
+<button type="submit" class="linkbtn">enable local sync</button>
 </form>
 
 {% elif state == "linked" %}

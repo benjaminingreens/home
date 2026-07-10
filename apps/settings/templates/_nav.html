@@ -1,0 +1,12 @@
+<nav class="settings-nav">
+
+<a href="/apps/settings/" class="{% if section == 'account' %}active{% endif %}">account</a>
+<a href="/apps/settings/visibility" class="{% if section == 'visibility' %}active{% endif %}">visibility</a>
+<a href="/apps/settings/groups" class="{% if section == 'groups' %}active{% endif %}">groups</a>
+<a href="/apps/settings/servers" class="{% if section == 'servers' %}active{% endif %}">servers</a>
+
+{% if user.is_admin %}
+<a href="/apps/settings/accounts" class="{% if section == 'accounts' %}active{% endif %}">accounts</a>
+{% endif %}
+
+</nav>

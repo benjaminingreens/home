@@ -28,26 +28,8 @@
 
 {% if workspace_toggles|length > 1 %}
 
-<div id="results" style="margin-bottom: var(--section-gap);">
-
-{% for w in workspace_toggles %}
-
-<div class="record">
-
-<span class="record-text">{{ w.group_name | lower }} / {{ w.name }}</span>
-
-<span class="record-dots"></span>
-
-<form method="post" action="/apps/documents/visibility" class="reset-form">
-<input type="hidden" name="workspace_id" value="{{ w.id }}">
-<input type="hidden" name="visible" value="{{ 0 if w.visible else 1 }}">
-<button type="submit">{{ "hide" if w.visible else "show" }}</button>
-</form>
-
-</div>
-
-{% endfor %}
-
+<div style="margin-bottom: var(--section-gap);">
+<a href="/apps/documents/workspaces" class="linkbtn">workspaces</a>
 </div>
 
 {% endif %}
@@ -72,7 +54,7 @@
 
 {% for note in notes %}
 
-<a class="record" href="/apps/ark/?file={{ note.path }}&app=Documents&home=/apps/documents/&find={{ note.content | urlencode }}">
+<a class="record" href="/apps/ark/?file={{ note.path }}&workspace={{ note.workspace_id }}&app=Documents&home=/apps/documents/&find={{ note.content | urlencode }}">
 
 <span class="record-text">{{ note.content }}</span>
 

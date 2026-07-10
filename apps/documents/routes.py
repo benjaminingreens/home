@@ -88,6 +88,22 @@ def home():
     )
 
 
+@bp.route("/workspaces")
+def workspaces_list():
+    user = current_user()
+
+    if not user:
+        return redirect("/login")
+
+    return render_template(
+        "documents_workspaces.html",
+        user=user,
+        app_label=NAME,
+        app_home="/apps/documents/",
+        workspace_toggles=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
+    )
+
+
 @bp.post("/visibility")
 def toggle_visibility():
     user = current_user()
@@ -100,4 +116,4 @@ def toggle_visibility():
 
     core_groups.set_workspace_visibility(user["id"], workspace_id, visible)
 
-    return redirect("/apps/documents/")
+    return redirect("/apps/documents/workspaces")

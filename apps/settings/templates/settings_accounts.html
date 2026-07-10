@@ -1,0 +1,64 @@
+{% extends "app.html" %}
+
+{% block body %}
+
+<h1>settings</h1>
+
+{% include "_nav.html" %}
+
+{% if message %}
+<p class="notice">{{ message }}</p>
+{% endif %}
+
+{% if error %}
+<p class="error">{{ error }}</p>
+{% endif %}
+
+<h2>create account</h2>
+
+<form method="post" class="authform">
+
+<input type="hidden" name="action" value="create_user">
+
+<label>
+<span>username</span>
+<input name="new_username" autocomplete="off">
+</label>
+
+<label>
+<span>default password</span>
+<input name="new_user_password" autocomplete="off">
+</label>
+
+<button type="submit">create account</button>
+
+</form>
+
+<hr class="section-sep">
+
+<h2>accounts</h2>
+
+<div id="results">
+
+{% for u in all_users %}
+
+<div class="record">
+
+<span class="record-text">{{ u.username }}{% if u.is_admin %} (admin){% endif %}{% if u.must_change_password %} &middot; <span class="muted">must change password</span>{% endif %}</span>
+
+<span class="record-dots"></span>
+
+<form method="post" class="reset-form">
+<input type="hidden" name="action" value="reset_user_password">
+<input type="hidden" name="user_id" value="{{ u.id }}">
+<input name="reset_password" placeholder="new password" autocomplete="off">
+<button type="submit">reset</button>
+</form>
+
+</div>
+
+{% endfor %}
+
+</div>
+
+{% endblock %}
