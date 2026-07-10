@@ -119,6 +119,18 @@ def groups_page():
             except ValueError as e:
                 error = str(e)
 
+        elif action == "create_workspace":
+            try:
+                group_id = int(request.form.get("group_id", 0))
+                name = request.form.get("workspace_name", "").strip()
+                record = core_groups.create_workspace_record(group_id, "ark", name, user["id"])
+                core_groups.set_active_workspace(user["id"], record["id"])
+                return redirect("/apps/ark/workspace")
+            except (ValueError, PermissionError) as e:
+                error = str(e)
+            except sqlite3.IntegrityError:
+                error = "a workspace with that name already exists in this group"
+
     groups_view = []
     for g in core_groups.list_user_groups(user["id"]):
         groups_view.append({
@@ -127,6 +139,7 @@ def groups_page():
             "is_personal": g["is_personal"],
             "members": core_groups.list_group_members(g["id"]),
             "invitable": [] if g["is_personal"] else core_groups.list_invitable_users(g["id"]),
+            "workspaces": core_groups.list_group_workspaces(g["id"], "ark"),
         })
 
     return render_template(

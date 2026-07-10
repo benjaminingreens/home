@@ -5,7 +5,6 @@
 {% if workspace_options is defined %}
 
 <form method="post" action="/apps/ark/workspaces" class="topbar-form">
-<input type="hidden" name="action" value="switch">
 <select name="workspace_id" class="topbar-select" onchange="this.form.submit()">
 {% for w in workspace_options %}
 <option value="{{ w.id }}" {% if w.id == active_workspace_id %}selected{% endif %}>{{ w.group_name | lower }} / {{ w.name }}</option>
@@ -22,7 +21,7 @@
 {% endif %}
 
 {% elif workspace_label %}
-<a href="/apps/ark/workspaces" class="topbar-workspace">{{ workspace_label | lower }}</a>
+<span class="topbar-workspace">{{ workspace_label | lower }}</span>
 {% endif %}
 
 {% if user %}

@@ -54,23 +54,15 @@
 
 <h2>groups</h2>
 
-<div id="results">
-
 {% for g in groups %}
 
-<div class="record">
+<h3 style="margin-bottom: 8px;">{{ g.name | lower }}{% if g.is_personal %} <span class="muted">(personal)</span>{% endif %}</h3>
 
-<span class="record-text">{{ g.name | lower }}{% if g.is_personal %} (personal){% endif %}</span>
-
-<span class="record-dots"></span>
-
-<span class="record-meta">{% for m in g.members %}{{ m.username }}{% if m.status == "invited" %} (invited){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</span>
-
-</div>
+<p class="muted">members: {% for m in g.members %}{{ m.username }}{% if m.status == "invited" %} (invited){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</p>
 
 {% if not g.is_personal %}
 
-<form method="post" class="reset-form" style="margin: 0 0 14px 0;">
+<form method="post" class="reset-form" style="margin: 10px 0;">
 <input type="hidden" name="action" value="invite_member">
 <input type="hidden" name="group_id" value="{{ g.id }}">
 <select name="invitee_id">
@@ -83,9 +75,33 @@
 
 {% endif %}
 
+{% if g.workspaces %}
+
+<p class="muted" style="margin-top: 14px;">workspaces:
+{% for w in g.workspaces %}{{ w.name }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+
+{% endif %}
+
+<form method="post" class="reset-form" style="margin: 10px 0 var(--section-gap) 0;">
+<input type="hidden" name="action" value="create_workspace">
+<input type="hidden" name="group_id" value="{{ g.id }}">
+<input name="workspace_name" placeholder="new workspace name" autocomplete="off">
+<button type="submit">add workspace</button>
+</form>
+
+<hr class="section-sep">
+
+{% else %}
+
+<p class="muted">no groups yet.</p>
+
 {% endfor %}
 
-</div>
+<h3>create a group</h3>
+
+<p class="muted">groups don't have to be shared &mdash; a group with just you
+in it is a good way to get another workspace of your own (e.g. "work"),
+separate from your default one.</p>
 
 <form method="post" class="authform">
 

@@ -1,4 +1,3 @@
-import sqlite3
 from urllib.parse import urlencode
 
 from flask import render_template, request, redirect, abort
@@ -225,58 +224,23 @@ def home():
     )
 
 
-@bp.route("/workspaces", methods=["GET", "POST"])
-def workspaces_list():
+@bp.post("/workspaces")
+def switch_workspace():
+    """The topbar dropdown posts here. Creating workspaces lives in
+    Settings, next to the group it belongs to - this endpoint only
+    switches which existing one the terminal is pointed at."""
+
     user = current_user()
 
     if not user:
         return redirect("/login")
 
-    error = ""
+    try:
+        core_groups.set_active_workspace(user["id"], int(request.form.get("workspace_id", 0)))
+    except (ValueError, PermissionError):
+        pass
 
-    if request.method == "POST":
-        action = request.form.get("action")
-
-        try:
-            if action == "switch":
-                core_groups.set_active_workspace(user["id"], int(request.form.get("workspace_id", 0)))
-                return redirect("/apps/ark/")
-
-            elif action == "create":
-                group_id = int(request.form.get("group_id", 0))
-                name = request.form.get("name", "").strip()
-
-                record = core_groups.create_workspace_record(group_id, "ark", name, user["id"])
-                core_groups.set_active_workspace(user["id"], record["id"])
-
-                return redirect("/apps/ark/workspace")
-
-            elif action == "create_personal":
-                name = request.form.get("personal_name", "").strip()
-
-                if not name:
-                    error = "name is required"
-                else:
-                    new_group_id = core_groups.create_group(name, user["id"])
-                    record = core_groups.create_workspace_record(new_group_id, "ark", "default", user["id"])
-                    core_groups.set_active_workspace(user["id"], record["id"])
-
-                    return redirect("/apps/ark/workspace")
-
-        except (ValueError, PermissionError) as e:
-            error = str(e)
-        except sqlite3.IntegrityError:
-            error = "a workspace with that name already exists in this group"
-
-    return render_template(
-        "workspaces.html",
-        user=user,
-        app_label=NAME,
-        app_home="/apps/ark/",
-        groups=core_groups.list_user_groups(user["id"]),
-        workspaces=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
-        error=error,
-    )
+    return redirect("/apps/ark/")
 
 
 @bp.route("/workspace", methods=["GET", "POST"])
