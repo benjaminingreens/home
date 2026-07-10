@@ -2,6 +2,10 @@
 
 <a href="{{ app_home or '/' }}" class="topbar-app">{{ (app_label or "home") | lower }}</a>
 
+{% if workspace_label %}
+<a href="/apps/ark/workspaces" class="topbar-workspace">{{ workspace_label | lower }}</a>
+{% endif %}
+
 {% if user %}
 <a href="/" class="topbar-user">{{ user["username"] | lower }}</a>
 <a href="/logout">logout</a>

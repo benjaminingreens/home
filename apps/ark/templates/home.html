@@ -2,17 +2,19 @@
 
 {% block body %}
 
-{% if git_linked %}
 <div id="syncbar">
+
+{% if git_linked %}
 <form method="post" action="/apps/ark/sync">
 <button type="submit" class="linkbtn">sync</button>
 </form>
-</div>
 {% else %}
-<div id="syncbar">
 <a href="/apps/ark/workspace" class="linkbtn">link a local copy</a>
-</div>
 {% endif %}
+
+<a href="/apps/ark/workspaces" class="linkbtn">switch workspace</a>
+
+</div>
 
 {% include "_terminal.html" %}
 

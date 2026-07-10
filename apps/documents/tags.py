@@ -9,33 +9,44 @@ def _tags_from_meta(meta):
     return sorted(set(TAG_RE.findall(meta)))
 
 
-def _as_note(record):
+def _as_note(record, workspace):
     return {
         "content": record["text"],
         "tags": _tags_from_meta(record["meta"]),
         "path": record["path"],
+        "workspace_id": workspace["id"],
+        "workspace_label": workspace["label"],
     }
 
 
-def scan_notes(workspace):
-    records, _, _ = run(workspace, "note")
-    return [_as_note(r) for r in records]
+def scan_notes(workspaces):
+    notes = []
+
+    for ws in workspaces:
+        records, _, _ = run(ws["path"], "note")
+        notes.extend(_as_note(r, ws) for r in records)
+
+    return notes
 
 
-def list_tags(workspace):
+def list_tags(workspaces):
     tags = set()
 
-    for note in scan_notes(workspace):
+    for note in scan_notes(workspaces):
         tags.update(note["tags"])
 
     return sorted(tags)
 
 
-def notes_by_tags(workspace, tags):
+def notes_by_tags(workspaces, tags):
     if not tags:
-        return scan_notes(workspace)
+        return scan_notes(workspaces)
 
     query = "note, " + ", ".join(f"-#{t}" for t in tags)
-    records, _, _ = run(workspace, query)
+    notes = []
 
-    return [_as_note(r) for r in records]
+    for ws in workspaces:
+        records, _, _ = run(ws["path"], query)
+        notes.extend(_as_note(r, ws) for r in records)
+
+    return notes

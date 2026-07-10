@@ -1,24 +1,47 @@
-from pathlib import Path
+import sqlite3
 from urllib.parse import urlencode
 
 from flask import render_template, request, redirect, abort
 
 from core.auth import current_user
-from core.workspaces import app as app_workspace
 from core import workspaces as core_workspaces
+from core import groups as core_groups
 
 from . import bp, NAME
 from .runner import install, run, add, is_git_linked, sync
 
 
+def resolve_active_workspace(user):
+    """The DB workspace row backing wherever this user's Ark terminal is
+    currently pointed. Falls back to (and lazily creates) their personal
+    group's "default" workspace record on first use - the record itself
+    doesn't touch disk; that only happens through the choose/link setup
+    flow, same as before groups existed."""
+
+    workspace_id = user["active_workspace_id"]
+
+    if workspace_id:
+        record = core_groups.get_workspace(workspace_id)
+
+        if record and core_groups.require_active_member(user["id"], record["group_id"]):
+            return record
+
+    record = core_groups.get_or_create_default_workspace(user["id"], "ark")
+    core_groups.set_active_workspace(user["id"], record["id"])
+
+    return record
+
+
 def ark_workspace():
     user = current_user()
+
     if not user:
-        return None, None
+        return None, None, None
 
-    workspace = app_workspace(user["username"], "ark")
+    record = resolve_active_workspace(user)
+    workspace = core_workspaces.path(record["group_slug"], "ark", record["name"])
 
-    return user, workspace
+    return user, workspace, record
 
 
 def workspace_ready(workspace):
@@ -91,7 +114,7 @@ def process(workspace, query):
 
 @bp.route("/", methods=["GET", "POST"])
 def home():
-    user, workspace = ark_workspace()
+    user, workspace, record = ark_workspace()
 
     if not user:
         return redirect("/login")
@@ -175,17 +198,61 @@ def home():
         app_home="/apps/ark/",
         apps=[],
         git_linked=is_git_linked(workspace),
+        workspace_label=f"{record['group_name']} / {record['name']}",
+    )
+
+
+@bp.route("/workspaces", methods=["GET", "POST"])
+def workspaces_list():
+    user = current_user()
+
+    if not user:
+        return redirect("/login")
+
+    error = ""
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        try:
+            if action == "switch":
+                core_groups.set_active_workspace(user["id"], int(request.form.get("workspace_id", 0)))
+                return redirect("/apps/ark/")
+
+            elif action == "create":
+                group_id = int(request.form.get("group_id", 0))
+                name = request.form.get("name", "").strip()
+
+                record = core_groups.create_workspace_record(group_id, "ark", name, user["id"])
+                core_groups.set_active_workspace(user["id"], record["id"])
+
+                return redirect("/apps/ark/workspace")
+
+        except (ValueError, PermissionError) as e:
+            error = str(e)
+        except sqlite3.IntegrityError:
+            error = "a workspace with that name already exists in this group"
+
+    return render_template(
+        "workspaces.html",
+        user=user,
+        app_label=NAME,
+        app_home="/apps/ark/",
+        groups=core_groups.list_user_groups(user["id"]),
+        workspaces=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
+        error=error,
     )
 
 
 @bp.route("/workspace", methods=["GET", "POST"])
 def workspace_setup():
-    user, workspace = ark_workspace()
+    user, workspace, record = ark_workspace()
 
     if not user:
         return redirect("/login")
 
-    username = user["username"]
+    group_slug = record["group_slug"]
+    workspace_name = record["name"]
     error = ""
     message = ""
 
@@ -197,25 +264,25 @@ def workspace_setup():
             return redirect("/apps/ark/")
 
         elif action == "start_link":
-            core_workspaces.start_link(username, "ark")
+            core_workspaces.start_link(group_slug, "ark", workspace_name)
 
         elif action == "finish_link":
             try:
-                core_workspaces.finish_link(username, "ark")
+                core_workspaces.finish_link(group_slug, "ark", workspace_name)
                 return redirect("/apps/ark/")
             except ValueError as e:
                 error = str(e)
 
         elif action == "enable_git":
             try:
-                core_workspaces.enable_git(username, "ark")
+                core_workspaces.enable_git(group_slug, "ark", workspace_name)
                 message = "local sync enabled"
             except ValueError as e:
                 error = str(e)
 
     ready = workspace_ready(workspace)
     linked = is_git_linked(workspace)
-    bare_started = core_workspaces.has_bare_repo(username, "ark")
+    bare_started = core_workspaces.has_bare_repo(group_slug, "ark", workspace_name)
 
     if not ready:
         state = "linking" if bare_started else "choose"
@@ -225,9 +292,12 @@ def workspace_setup():
         state = "linked"
 
     if linked:
-        remote = core_workspaces.current_remote(username, "ark") or core_workspaces.remote_url(username, "ark")
+        remote = (
+            core_workspaces.current_remote(group_slug, "ark", workspace_name)
+            or core_workspaces.remote_url(group_slug, "ark", workspace_name)
+        )
     elif bare_started:
-        remote = core_workspaces.remote_url(username, "ark")
+        remote = core_workspaces.remote_url(group_slug, "ark", workspace_name)
     else:
         remote = None
 
@@ -240,12 +310,13 @@ def workspace_setup():
         remote=remote,
         error=error,
         message=message,
+        workspace_label=f"{record['group_name']} / {record['name']}",
     )
 
 
 @bp.post("/sync")
 def sync_route():
-    user, workspace = ark_workspace()
+    user, workspace, record = ark_workspace()
 
     if not user:
         return redirect("/login")
@@ -259,7 +330,7 @@ def sync_route():
 
 @bp.post("/save")
 def save():
-    user, workspace = ark_workspace()
+    user, workspace, record = ark_workspace()
 
     if not user:
         return redirect("/login")

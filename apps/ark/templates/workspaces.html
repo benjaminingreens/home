@@ -1,0 +1,65 @@
+{% extends "app.html" %}
+
+{% block body %}
+
+<h1>ark workspaces</h1>
+
+{% if error %}
+<p class="error">{{ error }}</p>
+{% endif %}
+
+<div id="results">
+
+{% for w in workspaces %}
+
+<div class="record">
+
+<span class="record-text">{{ w.group_name | lower }} / {{ w.name }}</span>
+
+<span class="record-dots"></span>
+
+<form method="post" class="reset-form">
+<input type="hidden" name="action" value="switch">
+<input type="hidden" name="workspace_id" value="{{ w.id }}">
+<button type="submit">switch</button>
+</form>
+
+</div>
+
+{% else %}
+
+<p class="muted">no workspaces yet.</p>
+
+{% endfor %}
+
+</div>
+
+<h2>create a workspace</h2>
+
+<form method="post" class="authform">
+
+<input type="hidden" name="action" value="create">
+
+<label>
+<span>group</span>
+<select name="group_id">
+{% for g in groups %}
+<option value="{{ g.id }}">{{ g.name | lower }}</option>
+{% endfor %}
+</select>
+</label>
+
+<label>
+<span>workspace name</span>
+<input name="name" placeholder="default" autocomplete="off">
+</label>
+
+<button type="submit">create</button>
+
+</form>
+
+<p class="muted" style="margin-top: var(--section-gap);">
+<a href="/apps/settings/">manage groups &amp; invites in settings</a>
+</p>
+
+{% endblock %}

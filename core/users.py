@@ -3,7 +3,7 @@ import os
 import sqlite3
 
 from .db import connect
-from .workspaces import create as create_workspace
+from .groups import create_personal_group
 
 PBKDF2_ITERATIONS = 260_000
 
@@ -43,8 +43,11 @@ def create(username, password, is_admin=False, must_change_password=False):
             """,
             (username, hash_password(password), int(is_admin), int(must_change_password)),
         )
+        user_id = con.execute(
+            "SELECT id FROM users WHERE username=?", (username,)
+        ).fetchone()["id"]
 
-    create_workspace(username)
+    create_personal_group(user_id, username)
 
 
 def authenticate(username, password):

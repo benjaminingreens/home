@@ -41,6 +41,149 @@
 
 </form>
 
+<h2>visibility</h2>
+
+<p class="muted">who can see you when someone goes to invite a member to a group.</p>
+
+<form method="post" class="authform">
+
+<input type="hidden" name="action" value="set_visibility">
+
+<label style="display: flex; align-items: baseline; gap: 10px;">
+<input type="radio" name="visibility" value="private" {% if user.visibility == "private" %}checked{% endif %}>
+<span style="margin-bottom: 0;">private &mdash; not invitable by anyone</span>
+</label>
+
+<label style="display: flex; align-items: baseline; gap: 10px;">
+<input type="radio" name="visibility" value="server" {% if user.visibility == "server" or not user.visibility %}checked{% endif %}>
+<span style="margin-bottom: 0;">visible to this server</span>
+</label>
+
+<label style="display: flex; align-items: baseline; gap: 10px;">
+<input type="radio" name="visibility" value="federated" {% if user.visibility == "federated" %}checked{% endif %}>
+<span style="margin-bottom: 0;">visible to this server, and connected servers (federation not yet functional)</span>
+</label>
+
+<button type="submit">save</button>
+
+</form>
+
+{% if pending_invites %}
+
+<h2>invites</h2>
+
+<div id="results">
+
+{% for g in pending_invites %}
+
+<div class="record">
+
+<span class="record-text">{{ g.name | lower }}</span>
+
+<span class="record-dots"></span>
+
+<form method="post" class="reset-form">
+<input type="hidden" name="action" value="respond_invite">
+<input type="hidden" name="group_id" value="{{ g.id }}">
+<input type="hidden" name="accept" value="1">
+<button type="submit">accept</button>
+</form>
+
+<form method="post" class="reset-form">
+<input type="hidden" name="action" value="respond_invite">
+<input type="hidden" name="group_id" value="{{ g.id }}">
+<input type="hidden" name="accept" value="0">
+<button type="submit">decline</button>
+</form>
+
+</div>
+
+{% endfor %}
+
+</div>
+
+{% endif %}
+
+<h2>groups</h2>
+
+<div id="results">
+
+{% for g in groups %}
+
+<div class="record">
+
+<span class="record-text">{{ g.name | lower }}{% if g.is_personal %} (personal){% endif %}</span>
+
+<span class="record-dots"></span>
+
+<span class="record-meta">{% for m in g.members %}{{ m.username }}{% if m.status == "invited" %} (invited){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</span>
+
+</div>
+
+{% if not g.is_personal %}
+
+<form method="post" class="reset-form" style="margin: 0 0 14px 0;">
+<input type="hidden" name="action" value="invite_member">
+<input type="hidden" name="group_id" value="{{ g.id }}">
+<select name="invitee_id">
+{% for u in g.invitable %}
+<option value="{{ u.id }}">{{ u.username }}</option>
+{% endfor %}
+</select>
+<button type="submit">invite</button>
+</form>
+
+{% endif %}
+
+{% endfor %}
+
+</div>
+
+<form method="post" class="authform">
+
+<input type="hidden" name="action" value="create_group">
+
+<label>
+<span>new group name</span>
+<input name="group_name" autocomplete="off">
+</label>
+
+<button type="submit">create group</button>
+
+</form>
+
+<h2>connected servers</h2>
+
+<p class="muted">federation is schema-only right now &mdash; adding a server here
+just records it, nothing actually connects yet.</p>
+
+<div id="results">
+
+{% for s in federated_servers %}
+
+<div class="record">
+<span class="record-text">{{ s.host }}</span>
+<span class="record-dots"></span>
+<span class="record-meta">{{ s.status }}</span>
+</div>
+
+{% endfor %}
+
+</div>
+
+<form method="post" class="authform">
+
+<input type="hidden" name="action" value="add_server">
+
+<label>
+<span>server host</span>
+<input name="host" placeholder="home.example.com" autocomplete="off">
+</label>
+
+<button type="submit">add</button>
+
+</form>
+
 {% if user.is_admin %}
 
 <h2>create account</h2>

@@ -26,6 +26,32 @@
 
 </div>
 
+{% if workspace_toggles|length > 1 %}
+
+<div id="results" style="margin-bottom: var(--section-gap);">
+
+{% for w in workspace_toggles %}
+
+<div class="record">
+
+<span class="record-text">{{ w.group_name | lower }} / {{ w.name }}</span>
+
+<span class="record-dots"></span>
+
+<form method="post" action="/apps/documents/visibility" class="reset-form">
+<input type="hidden" name="workspace_id" value="{{ w.id }}">
+<input type="hidden" name="visible" value="{{ 0 if w.visible else 1 }}">
+<button type="submit">{{ "hide" if w.visible else "show" }}</button>
+</form>
+
+</div>
+
+{% endfor %}
+
+</div>
+
+{% endif %}
+
 {% if selected %}
 
 <div id="selected">
@@ -52,7 +78,7 @@
 
 <span class="record-dots"></span>
 
-<span class="record-meta">{% for t in note.tags %}#{{ t }} {% endfor %}</span>
+<span class="record-meta">{% if show_origin %}<span class="record-origin">{{ note.workspace_label | lower }}</span>{% endif %}{% for t in note.tags %}#{{ t }} {% endfor %}</span>
 
 </a>
 
