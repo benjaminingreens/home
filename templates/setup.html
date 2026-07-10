@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block body %}
+
+<h1>set up home</h1>
+
+<p class="muted">this creates the first account, which is the admin. from
+here, use settings to create accounts for anyone else.</p>
+
+{% if error %}
+<p class="error">{{ error }}</p>
+{% endif %}
+
+<form method="post" class="authform">
+
+<label>
+
+<span>username</span>
+
+<input
+    name="username"
+    autocomplete="username"
+    autofocus
+>
+
+</label>
+
+<label>
+
+<span>password</span>
+
+<input
+    name="password"
+    type="password"
+    autocomplete="new-password"
+>
+
+</label>
+
+<label>
+
+<span>confirm password</span>
+
+<input
+    name="confirm_password"
+    type="password"
+    autocomplete="new-password"
+>
+
+</label>
+
+<button type="submit">create admin account</button>
+
+</form>
+
+{% endblock %}

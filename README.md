@@ -66,7 +66,7 @@ virtualenv, installs dependencies, generates `~/apps/homeapp/.env` with a
 random `HOME_SECRET_KEY` and a data directory at `~/apps/homeapp-data`, and
 offers to install and start it as a systemd service (`homeapp.service`,
 listening on `127.0.0.1:8001` — deliberately not exposed directly; see
-step 4).
+step 3).
 
 You can override where things go:
 
@@ -75,28 +75,7 @@ HOMEAPP_INSTALL_DIR=~/somewhere/else \
   curl -fsSL https://raw.githubusercontent.com/benjaminingreens/home/main/install.sh | bash
 ```
 
-### 3. Create the first account
-
-HOME needs at least one admin account to create everyone else's. Add these
-two lines to `~/apps/homeapp/.env` before first starting the service:
-
-```
-HOME_ADMIN_USER=joe
-HOME_ADMIN_PASSWORD=a-temporary-password
-```
-
-Then (re)start it:
-
-```bash
-sudo systemctl restart homeapp
-```
-
-On startup, HOME notices `joe` doesn't exist yet and creates it as an admin
-with that password, forced to change it on first login. You can remove
-those two lines from `.env` afterward — they're only read if the account
-doesn't already exist.
-
-### 4. Put it on a real domain
+### 3. Put it on a real domain
 
 `homeapp` only listens on `127.0.0.1:8001` — it expects a reverse proxy in
 front of it for TLS. With nginx, the relevant block looks like:
@@ -123,11 +102,19 @@ works just as well if you'd rather not hand-write TLS config — point it at
 port 8001 itself should stay closed to the outside world; only the reverse
 proxy needs to be reachable.
 
-### 5. Log in
+### 4. Create the first account
 
-Visit your domain, log in as `joe` with the temporary password, and you'll
-be forced straight to Settings to set a real one. From there, Settings →
-create account for anyone else who needs access.
+Visit your domain. No config edits needed — since no account exists yet,
+you'll land on a "set up HOME" screen instead of a login form, asking you
+to pick a username and password. That account becomes the admin
+automatically, and you're logged straight in. The moment it's created,
+that screen disables itself for good; every visit after that gets the
+normal login page.
+
+This screen is reachable by anyone who gets there first, so do it right
+after starting the service rather than leaving the domain sitting exposed
+and unclaimed for long. From there, Settings → create account for anyone
+else who needs access.
 
 ### Connecting a workspace
 

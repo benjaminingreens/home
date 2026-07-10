@@ -16,12 +16,11 @@ from flask import (
 
 from .storage import init
 from .auth import login, logout
-from .users import ensure_admin
+from .users import has_any_users, create_first_admin
 
 ROOT = Path(__file__).resolve().parent.parent
 
 init()
-ensure_admin()
 
 app = Flask(
     __name__,
@@ -41,7 +40,20 @@ else:
     app.secret_key = secrets.token_hex(32)
 
 
-EXEMPT_PATHS = ("/login", "/logout", "/register")
+EXEMPT_PATHS = ("/login", "/logout", "/register", "/setup")
+
+
+@app.before_request
+def enforce_setup():
+
+    if request.path.startswith("/static/"):
+        return
+
+    if request.path == "/setup":
+        return
+
+    if not has_any_users():
+        return redirect("/setup")
 
 
 @app.before_request
@@ -143,3 +155,36 @@ def register():
     # Public self-registration is disabled. Accounts are created by an
     # admin from within Settings.
     return redirect("/login")
+
+
+@app.route("/setup", methods=["GET", "POST"])
+def setup_page():
+    # One-time, first-run only: creates the initial admin account. Once
+    # any account exists, this permanently redirects to /login instead.
+    if has_any_users():
+        return redirect("/login")
+
+    error = ""
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip().lower()
+        password = request.form.get("password", "")
+        confirm = request.form.get("confirm_password", "")
+
+        if not username or not password:
+            error = "username and password are required"
+        elif len(password) < 8:
+            error = "password must be at least 8 characters"
+        elif password != confirm:
+            error = "passwords do not match"
+        elif not create_first_admin(username, password):
+            error = "setup was already completed"
+        else:
+            login(username, password)
+            return redirect("/")
+
+    return render_template(
+        "setup.html",
+        title="Set up HOME",
+        error=error,
+    )

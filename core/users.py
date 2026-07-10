@@ -95,26 +95,20 @@ def list_users():
         ).fetchall()
 
 
-def ensure_admin():
-
-    username = os.environ.get("HOME_ADMIN_USER")
-    password = os.environ.get("HOME_ADMIN_PASSWORD")
-
-    if not username or not password:
-        return
-
-    username = username.strip().lower()
+def has_any_users():
 
     with connect() as con:
-        existing = con.execute(
-            "SELECT id FROM users WHERE username=?", (username,)
-        ).fetchone()
+        return con.execute("SELECT 1 FROM users LIMIT 1").fetchone() is not None
 
-    if existing:
-        return
+
+def create_first_admin(username, password):
+    """Used only by the one-time /setup screen, which is itself gated on
+    has_any_users() being False. The IntegrityError guard covers the race
+    between that check and this insert (e.g. two gunicorn workers handling
+    near-simultaneous first-run requests)."""
 
     try:
-        create(username, password, is_admin=True, must_change_password=True)
+        create(username, password, is_admin=True)
+        return True
     except sqlite3.IntegrityError:
-        # another gunicorn worker won the race to create this account
-        pass
+        return False
