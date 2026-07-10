@@ -1,0 +1,66 @@
+{% extends "app.html" %}
+
+{% block body %}
+
+<h1>ark workspace</h1>
+
+{% if error %}
+<p class="error">{{ error }}</p>
+{% endif %}
+
+{% if message %}
+<p class="notice">{{ message }}</p>
+{% endif %}
+
+{% if state == "choose" %}
+
+<p class="muted">this workspace hasn't been set up yet. where should its data come from?</p>
+
+<form method="post" class="authform">
+<input type="hidden" name="action" value="new">
+<button type="submit">create a new workspace on the server</button>
+</form>
+
+<form method="post" class="authform">
+<input type="hidden" name="action" value="start_link">
+<button type="submit">link an existing workspace</button>
+</form>
+
+{% elif state == "linking" %}
+
+<p class="muted">on the machine with your existing workspace, run:</p>
+
+<pre>git remote add server {{ remote }}
+git push server main</pre>
+
+<p class="muted">(if your default branch isn't called <code>main</code>, run
+<code>git push server yourbranch:main</code> instead)</p>
+
+<p class="muted">once that's pushed, come back and finish linking:</p>
+
+<form method="post" class="authform">
+<input type="hidden" name="action" value="finish_link">
+<button type="submit">finish linking</button>
+</form>
+
+{% elif state == "upgrade" %}
+
+<p class="muted">this workspace only exists on the server right now. you can
+give it a git remote so you can also work on it from another machine.</p>
+
+<form method="post" class="authform">
+<input type="hidden" name="action" value="enable_git">
+<button type="submit">enable local sync</button>
+</form>
+
+{% elif state == "linked" %}
+
+<p class="muted">this workspace is git-linked. to get a copy on another machine, run:</p>
+
+<pre>git clone {{ remote }}</pre>
+
+<p class="muted"><a href="/apps/ark/">back to ark</a></p>
+
+{% endif %}
+
+{% endblock %}

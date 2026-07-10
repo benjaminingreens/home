@@ -129,6 +129,37 @@ Visit your domain, log in as `joe` with the temporary password, and you'll
 be forced straight to Settings to set a real one. From there, Settings →
 create account for anyone else who needs access.
 
+### Connecting a workspace
+
+The first time you open Ark, it asks how this workspace should get its data:
+
+- **create a new workspace on the server** — the simple path. HOME sets up
+  an empty Ark workspace for you, no git involved. You can still turn this
+  into a git-linked workspace later (see below).
+- **link an existing workspace** — for when you already keep your notes in
+  a git repo somewhere (another machine, say). HOME creates an empty bare
+  repo on the server and shows you a remote URL and two commands to run
+  wherever your existing workspace lives:
+
+  ```bash
+  git remote add server ssh://you@your-server/path/to/it.git
+  git push server main
+  ```
+
+  Once that's pushed, click "finish linking" and HOME clones it in.
+
+Either way, once a workspace is git-linked, a **sync** button appears on
+the Ark page — it commits any local edits, pulls from the server, and
+pushes, in that order. For a workspace that started as server-only, there's
+an "enable local sync" option that does the reverse: it creates a bare repo
+seeded from what's already there, so you can `git clone` it down to another
+machine.
+
+For "link existing" and "enable local sync" to show a usable remote URL
+(rather than a placeholder), set `HOME_GIT_HOST` (your server's
+SSH-reachable address) and `HOME_GIT_SSH_USER` (the OS user HOME runs as)
+in `.env`.
+
 ### Updating
 
 Re-run the same install command — it detects the existing checkout, pulls

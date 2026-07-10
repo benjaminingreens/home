@@ -5,6 +5,7 @@ from flask import render_template, request, redirect, abort
 
 from core.auth import current_user
 from core.workspaces import app as app_workspace
+from core import workspaces as core_workspaces
 
 from . import bp, NAME
 from .runner import install, run, add, is_git_linked, sync
@@ -17,10 +18,11 @@ def ark_workspace():
 
     workspace = app_workspace(user["username"], "ark")
 
-    if not (workspace / ".ark").exists():
-        install(workspace)
-
     return user, workspace
+
+
+def workspace_ready(workspace):
+    return (workspace / ".ark").exists()
 
 
 def safe_file(workspace, relpath):
@@ -63,6 +65,9 @@ def home():
 
     if not user:
         return redirect("/login")
+
+    if not workspace_ready(workspace):
+        return redirect("/apps/ark/workspace")
 
     file_path = request.args.get("file")
 
@@ -131,6 +136,70 @@ def home():
         app_home="/apps/ark/",
         apps=[],
         git_linked=is_git_linked(workspace),
+    )
+
+
+@bp.route("/workspace", methods=["GET", "POST"])
+def workspace_setup():
+    user, workspace = ark_workspace()
+
+    if not user:
+        return redirect("/login")
+
+    username = user["username"]
+    error = ""
+    message = ""
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        if action == "new":
+            install(workspace)
+            return redirect("/apps/ark/")
+
+        elif action == "start_link":
+            core_workspaces.start_link(username, "ark")
+
+        elif action == "finish_link":
+            try:
+                core_workspaces.finish_link(username, "ark")
+                return redirect("/apps/ark/")
+            except ValueError as e:
+                error = str(e)
+
+        elif action == "enable_git":
+            try:
+                core_workspaces.enable_git(username, "ark")
+                message = "local sync enabled"
+            except ValueError as e:
+                error = str(e)
+
+    ready = workspace_ready(workspace)
+    linked = is_git_linked(workspace)
+    bare_started = core_workspaces.has_bare_repo(username, "ark")
+
+    if not ready:
+        state = "linking" if bare_started else "choose"
+    elif not linked:
+        state = "upgrade"
+    else:
+        state = "linked"
+
+    remote = (
+        core_workspaces.remote_url(username, "ark")
+        if (bare_started or linked)
+        else None
+    )
+
+    return render_template(
+        "workspace.html",
+        user=user,
+        app_label=NAME,
+        app_home="/apps/ark/",
+        state=state,
+        remote=remote,
+        error=error,
+        message=message,
     )
 
 

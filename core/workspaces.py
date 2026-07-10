@@ -1,6 +1,6 @@
-from pathlib import Path
+import subprocess
 
-from .config import WORKSPACES
+from .config import WORKSPACES, GIT_ROOT, GIT_HOST, GIT_SSH_USER
 
 
 def path(user):
@@ -18,3 +18,98 @@ def create(user):
     root = path(user)
 
     root.mkdir(parents=True, exist_ok=True)
+
+
+def bare_repo_path(user, app_name):
+
+    return GIT_ROOT / user / f"{app_name}.git"
+
+
+def has_bare_repo(user, app_name):
+
+    return bare_repo_path(user, app_name).exists()
+
+
+def remote_url(user, app_name):
+
+    host = GIT_HOST or "<your-server-host>"
+    ssh_user = GIT_SSH_USER or "<ssh-user>"
+
+    return f"ssh://{ssh_user}@{host}{bare_repo_path(user, app_name)}"
+
+
+def _git(*args, cwd):
+
+    return subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        stdin=subprocess.DEVNULL,
+    )
+
+
+def start_link(user, app_name):
+    """Step 1 of linking an existing workspace: create an empty bare repo
+    on the server for the user to push into from wherever their existing
+    workspace already lives."""
+
+    bare = bare_repo_path(user, app_name)
+    bare.parent.mkdir(parents=True, exist_ok=True)
+
+    subprocess.run(["git", "init", "--bare", str(bare)], check=True)
+    subprocess.run(
+        ["git", "-C", str(bare), "symbolic-ref", "HEAD", "refs/heads/main"],
+        check=True,
+    )
+
+    return remote_url(user, app_name)
+
+
+def finish_link(user, app_name):
+    """Step 2: once the user has pushed to the bare repo, clone it into
+    the live workspace path."""
+
+    bare = bare_repo_path(user, app_name)
+    workspace = app(user, app_name)
+
+    result = subprocess.run(
+        ["git", "-C", str(bare), "show-ref", "--heads"],
+        capture_output=True,
+        text=True,
+    )
+
+    if not result.stdout.strip():
+        raise ValueError("nothing has been pushed to the server yet")
+
+    workspace.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "clone", str(bare), str(workspace)], check=True)
+
+
+def enable_git(user, app_name):
+    """Wire up git backing for a workspace that already exists on the
+    server but isn't linked to anywhere else yet, so a local copy can be
+    cloned down elsewhere."""
+
+    workspace = app(user, app_name)
+
+    if (workspace / ".git").exists():
+        raise ValueError("already git-linked")
+
+    bare = bare_repo_path(user, app_name)
+    bare.parent.mkdir(parents=True, exist_ok=True)
+
+    subprocess.run(["git", "init", "--bare", str(bare)], check=True)
+    subprocess.run(
+        ["git", "-C", str(bare), "symbolic-ref", "HEAD", "refs/heads/main"],
+        check=True,
+    )
+
+    _git("init", cwd=workspace)
+    _git("checkout", "-b", "main", cwd=workspace)
+    _git("remote", "add", "origin", str(bare), cwd=workspace)
+    _git("add", "-A", cwd=workspace)
+    _git("commit", "-m", "initial import", cwd=workspace)
+    _git("push", "-u", "origin", "main", cwd=workspace)
+
+    return remote_url(user, app_name)

@@ -8,6 +8,10 @@
 <button type="submit" class="linkbtn">sync</button>
 </form>
 </div>
+{% else %}
+<div id="syncbar">
+<a href="/apps/ark/workspace" class="linkbtn">link a local copy</a>
+</div>
 {% endif %}
 
 {% include "_terminal.html" %}

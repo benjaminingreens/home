@@ -12,3 +12,9 @@ WORKSPACES = DATA / "workspaces"
 APPS = ROOT / "apps"
 
 SECRET_KEY = os.environ.get("HOME_SECRET_KEY")
+
+GIT_ROOT = DATA / "git"
+
+GIT_HOST = os.environ.get("HOME_GIT_HOST", "")
+
+GIT_SSH_USER = os.environ.get("HOME_GIT_SSH_USER", "")
