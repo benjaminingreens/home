@@ -1,5 +1,6 @@
 import hashlib
 import os
+import sqlite3
 
 from .db import connect
 from .workspaces import create as create_workspace
@@ -112,4 +113,8 @@ def ensure_admin():
     if existing:
         return
 
-    create(username, password, is_admin=True, must_change_password=True)
+    try:
+        create(username, password, is_admin=True, must_change_password=True)
+    except sqlite3.IntegrityError:
+        # another gunicorn worker won the race to create this account
+        pass
