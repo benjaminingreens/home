@@ -30,6 +30,23 @@ def has_bare_repo(user, app_name):
     return bare_repo_path(user, app_name).exists()
 
 
+def current_remote(user, app_name):
+    """The workspace's actual configured origin, if it has one. Prefer
+    this over remote_url() for an already-linked workspace: it isn't
+    necessarily one HOME provisioned itself (e.g. set up by hand), so it
+    may not live at the conventional bare_repo_path()."""
+
+    workspace = app(user, app_name)
+
+    result = subprocess.run(
+        ["git", "-C", str(workspace), "remote", "get-url", "origin"],
+        capture_output=True,
+        text=True,
+    )
+
+    return result.stdout.strip() or None
+
+
 def remote_url(user, app_name):
 
     host = GIT_HOST or "<your-server-host>"

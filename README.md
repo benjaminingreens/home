@@ -156,9 +156,20 @@ seeded from what's already there, so you can `git clone` it down to another
 machine.
 
 For "link existing" and "enable local sync" to show a usable remote URL
-(rather than a placeholder), set `HOME_GIT_HOST` (your server's
-SSH-reachable address) and `HOME_GIT_SSH_USER` (the OS user HOME runs as)
-in `.env`.
+(rather than a placeholder), set `HOME_GIT_HOST` — your server's
+SSH-reachable address. Don't hand-edit `.env` for this; pass it to the
+install command instead (works on a fresh install or re-run of an
+existing one — the installer fills in any config key that isn't already
+set, without touching what's already there):
+
+```bash
+HOME_GIT_HOST=home.example.com \
+  curl -fsSL https://raw.githubusercontent.com/benjaminingreens/home/main/install.sh | bash
+```
+
+`HOME_GIT_SSH_USER` defaults to whichever OS user runs the installer,
+which is almost always what you want since that's the account that owns
+`HOME_DATA_DIR`.
 
 ### Updating
 

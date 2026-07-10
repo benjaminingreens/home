@@ -17,16 +17,21 @@ python3 -m venv "$APP_DIR/.venv"
 
 mkdir -p "$DATA_DIR"
 
-if [ ! -f "$ENV_FILE" ]; then
-    echo "Generating $ENV_FILE with a fresh secret key"
-    {
-        echo "HOME_DATA_DIR=$DATA_DIR"
-        echo "HOME_SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
-    } > "$ENV_FILE"
-    chmod 600 "$ENV_FILE"
-else
-    echo "$ENV_FILE already exists, leaving it as is"
-fi
+touch "$ENV_FILE"
+chmod 600 "$ENV_FILE"
+
+ensure_env() {
+    local key="$1" value="$2"
+    if ! grep -q "^${key}=" "$ENV_FILE"; then
+        echo "${key}=${value}" >> "$ENV_FILE"
+        echo "Added $key to $ENV_FILE"
+    fi
+}
+
+ensure_env HOME_DATA_DIR "$DATA_DIR"
+ensure_env HOME_SECRET_KEY "$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+ensure_env HOME_GIT_HOST "${HOME_GIT_HOST:-}"
+ensure_env HOME_GIT_SSH_USER "${HOME_GIT_SSH_USER:-$(whoami)}"
 
 if [ "$SKIP_SYSTEMD" = "1" ] || ! command -v systemctl >/dev/null 2>&1; then
     echo

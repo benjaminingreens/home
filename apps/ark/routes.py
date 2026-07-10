@@ -185,11 +185,12 @@ def workspace_setup():
     else:
         state = "linked"
 
-    remote = (
-        core_workspaces.remote_url(username, "ark")
-        if (bare_started or linked)
-        else None
-    )
+    if linked:
+        remote = core_workspaces.current_remote(username, "ark") or core_workspaces.remote_url(username, "ark")
+    elif bare_started:
+        remote = core_workspaces.remote_url(username, "ark")
+    else:
+        remote = None
 
     return render_template(
         "workspace.html",
