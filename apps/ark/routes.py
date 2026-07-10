@@ -35,6 +35,36 @@ def safe_file(workspace, relpath):
     return target
 
 
+def new_file_path(relpath):
+    """Where a bare "new <file>" should land. inbox.txt is Ark's own
+    canonical root file (tidy later sorts it into note/todo/evnt), so it
+    stays at the workspace root; anything else without an explicit
+    note/todo/evnt prefix defaults into note/, since Ark's scanner never
+    looks at the workspace root otherwise."""
+
+    relpath = relpath.strip()
+
+    if not relpath:
+        return None
+
+    top = relpath.split("/", 1)[0]
+
+    if top not in ("note", "todo", "evnt") and relpath != "inbox.txt":
+        relpath = f"note/{relpath}"
+
+    return relpath
+
+
+def create_new_file(workspace, relpath):
+    target = safe_file(workspace, relpath)
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    if not target.exists():
+        target.write_text("", encoding="utf-8")
+
+    return target
+
+
 def process(workspace, query):
     query = query.strip()
 
@@ -117,6 +147,15 @@ def home():
 
             if query.lower() == "home":
                 return redirect("/")
+
+            if query.lower().startswith("new "):
+                relpath = new_file_path(query[4:])
+
+                if relpath:
+                    create_new_file(workspace, relpath)
+                    return redirect(f"/apps/ark/?file={relpath}")
+
+                return redirect("/apps/ark/")
 
             added, records, message = process(workspace, query)
 

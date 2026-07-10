@@ -2,7 +2,7 @@ from flask import render_template, request, redirect
 
 from core.auth import current_user
 from core.workspaces import app as app_workspace
-from apps.ark.routes import safe_file
+from apps.ark.routes import new_file_path, create_new_file
 
 from . import bp, NAME
 from .tags import list_tags, notes_by_tags
@@ -31,17 +31,10 @@ def home():
         raw_query = request.form.get("query", "").strip()
 
         if raw_query.lower().startswith("new "):
-            relpath = raw_query[4:].strip()
+            relpath = new_file_path(raw_query[4:])
 
             if relpath:
-                if not relpath.split("/", 1)[0] in ("note", "todo", "evnt"):
-                    relpath = f"note/{relpath}"
-
-                target = safe_file(workspace, relpath)
-                target.parent.mkdir(parents=True, exist_ok=True)
-
-                if not target.exists():
-                    target.write_text("", encoding="utf-8")
+                create_new_file(workspace, relpath)
 
                 return redirect(
                     f"/apps/ark/?file={relpath}&app=Documents&home=/apps/documents/"
