@@ -44,7 +44,12 @@ else
     echo "Installing systemd service (requires sudo)"
     sudo cp "$SERVICE_FILE" "/etc/systemd/system/$SERVICE_NAME.service"
     sudo systemctl daemon-reload
-    sudo systemctl enable --now "$SERVICE_NAME"
+    sudo systemctl enable "$SERVICE_NAME"
+    # `enable --now` only starts a stopped service - on an update it's
+    # already running, so that wouldn't pick up new code. `restart` starts
+    # it either way, so this one command works for both first install and
+    # every later update.
+    sudo systemctl restart "$SERVICE_NAME"
     sudo systemctl status "$SERVICE_NAME" --no-pager || true
 fi
 
