@@ -117,3 +117,6 @@ def init():
 
         if "accent_color" not in columns:
             con.execute("ALTER TABLE users ADD COLUMN accent_color TEXT NOT NULL DEFAULT '#7fa8e2'")
+
+        if "background_color" not in columns:
+            con.execute("ALTER TABLE users ADD COLUMN background_color TEXT NOT NULL DEFAULT '#000000'")

@@ -38,4 +38,28 @@
 
 </form>
 
+<h2>background color</h2>
+
+<p class="muted">the page background &mdash; text color adjusts automatically to stay readable.</p>
+
+<form method="post" class="reset-form" style="flex-wrap: wrap; gap: 12px; margin: 16px 0;">
+{% for c in bg_palette %}
+<button type="submit" name="background_color" value="{{ c }}"
+    style="width: 32px; height: 32px; padding: 0; border-radius: 50%; cursor: pointer;
+    background: {{ c }}; border: 2px solid {{ '#fff' if c == user.background_color else '#444' }};"
+    aria-label="{{ c }}"></button>
+{% endfor %}
+</form>
+
+<form method="post" class="authform">
+
+<label>
+<span>custom hex color</span>
+<input name="background_color" placeholder="#000000" value="{{ user.background_color }}" autocomplete="off">
+</label>
+
+<button type="submit">save</button>
+
+</form>
+
 {% endblock %}

@@ -1,0 +1,19 @@
+{% if help_commands %}
+
+<div class="help-card">
+
+{% for cmd, desc in help_commands %}
+<div class="help-item"><span class="help-cmd">{{ cmd }}</span><span class="help-desc">{{ desc }}</span></div>
+{% endfor %}
+
+{% if help_more_hint %}
+<p class="muted">{{ help_more_hint }}</p>
+{% endif %}
+
+{% if help_extra %}
+<pre class="help-extra">{{ help_extra }}</pre>
+{% endif %}
+
+</div>
+
+{% endif %}

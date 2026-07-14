@@ -8,6 +8,7 @@ from core import groups as core_groups
 
 from . import bp, NAME
 from .runner import install, run, add, is_git_linked, sync
+from .parser import highlight_meta
 
 
 def resolve_active_workspace(user):
@@ -107,43 +108,54 @@ def create_new_file(workspace, relpath):
     return target
 
 
+ARK_HELP = [
+    ("note: <text>", "save a quick note"),
+    ("todo: <text>", "save a task"),
+    ("evnt: <text>", "save an event"),
+    ("new <file>", "create a file"),
+    ("sync", "push and pull this workspace"),
+    ("home", "go to the home screen"),
+]
+
+
 def process(workspace, query):
+    """Returns (added, records, message, help_commands, help_more_hint,
+    help_extra) - the last three are None outside the help/help-more
+    paths, which render.html renders via the shared _help.html partial
+    instead of stuffing curated text into the generic `message` string."""
+
     query = query.strip()
 
     if not query:
-        return False, [], ""
+        return False, [], "", None, None, None
 
     if query.lower() == "sync":
         _, message = sync(workspace)
-        return False, [], message
+        return False, [], message, None, None, None
 
     if query.lower() == "help":
+        return False, [], "", ARK_HELP, "type 'help more' to see every ark command", None
+
+    if query.lower() == "help more":
         _, ark_help, _ = run(workspace, "help")
-        message = (
-            "home commands:\n"
-            "  new <file>   create a file\n"
-            "  sync         push/pull this workspace\n"
-            "  home         go to the home screen\n\n"
-            + ark_help
-        )
-        return False, [], message
+        return False, [], "", ARK_HELP, None, ark_help
 
     if query.startswith(("note:", "todo:", "evnt:")):
         add(workspace, query)
-        return True, [], "added"
+        return True, [], "added", None, None, None
 
     records, stdout, error = run(workspace, query)
 
     if error:
-        return False, [], error
+        return False, [], error, None, None, None
 
     if records:
-        return False, records, ""
+        return False, records, "", None, None, None
 
     if stdout:
-        return False, [], stdout
+        return False, [], stdout, None, None, None
 
-    return False, [], "no results"
+    return False, [], "no results", None, None, None
 
 
 @bp.route("/", methods=["GET", "POST"])
@@ -181,11 +193,10 @@ def home():
             "file.html",
             file_path=file_path,
             file_content=file_content,
-            file_lines=file_lines,
+            file_lines=[highlight_meta(l) for l in file_lines],
             highlight_line=highlight_line,
             user=user,
             app_label=request.args.get("app", NAME),
-            app_id=request.args.get("app", NAME).lower(),
             app_home=request.args.get("home", "/apps/ark/"),
             workspace_id=record["id"],
         )
@@ -193,6 +204,7 @@ def home():
     records = []
     query = ""
     message = "added" if request.args.get("added") else ""
+    help_commands = help_more_hint = help_extra = None
 
     if request.method == "POST":
         query = request.form.get("query", "").strip()
@@ -211,7 +223,7 @@ def home():
 
                 return redirect("/apps/ark/")
 
-            added, records, message = process(workspace, query)
+            added, records, message, help_commands, help_more_hint, help_extra = process(workspace, query)
 
             if added:
                 return redirect("/apps/ark/?added=1")
@@ -224,9 +236,11 @@ def home():
         query=query,
         records=records,
         message=message,
+        help_commands=help_commands,
+        help_more_hint=help_more_hint,
+        help_extra=help_extra,
         user=user,
         app_label=NAME,
-        app_id="ark",
         app_home="/apps/ark/",
         apps=[],
         git_linked=is_git_linked(workspace),
@@ -315,7 +329,6 @@ def workspace_setup():
         "workspace.html",
         user=user,
         app_label=NAME,
-        app_id="ark",
         app_home="/apps/ark/",
         state=state,
         remote=remote,

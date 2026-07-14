@@ -18,6 +18,7 @@ from .storage import init
 from .auth import login, logout
 from .users import has_any_users, create_first_admin
 from . import groups as core_groups
+from .colors import contrasting_text_color
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -85,12 +86,14 @@ def inject_topbar_context():
     from apps.ark.routes import resolve_active_workspace
 
     active = resolve_active_workspace(user)
+    bg_color = user["background_color"]
 
     return {
         "current_user_ctx": user,
         "current_group": {"id": active["group_id"], "name": active["group_name"]},
         "user_groups": core_groups.list_user_groups(user["id"]),
-        "nav_apps": APPS,
+        "bg_color": bg_color,
+        "fg_color": contrasting_text_color(bg_color),
     }
 
 

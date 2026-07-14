@@ -1,6 +1,6 @@
 html {
     box-sizing: border-box;
-    background: #000;
+    background: var(--bg-color, #000);
     overflow-x: hidden;
 }
 
@@ -25,8 +25,8 @@ body::-webkit-scrollbar {
 body {
     margin: 0;
     padding: 32px;
-    background: #000;
-    color: #fff;
+    background: var(--bg-color, #000);
+    color: var(--fg-color, #fff);
     font-family:
         "IBM Plex Mono",
         ui-monospace,
@@ -46,6 +46,7 @@ body {
     --input-font-size: 2.3rem;
     --input-line-height: 1.5;
     --section-gap: 48px;
+    --row-font-size: 1.7rem;
 }
 
 .content {
@@ -203,7 +204,7 @@ button {
 }
 
 .topbar-appname {
-    color: #fff;
+    color: var(--fg-color, #fff);
 }
 
 .topbar-group:hover,
@@ -216,7 +217,7 @@ button {
 .menu-overlay {
     position: fixed;
     inset: 0;
-    background: #000;
+    background: var(--bg-color, #000);
     z-index: 50;
     overflow-y: auto;
     padding: 32px;
@@ -254,9 +255,9 @@ button {
     border: none;
     border-bottom: 1px solid #222;
     background: none;
-    color: #fff;
+    color: var(--fg-color, #fff);
     font: inherit;
-    font-size: 1.4rem;
+    font-size: var(--row-font-size, 1.4rem);
     font-style: normal;
     text-decoration: none;
     padding: 16px 0;
@@ -264,7 +265,7 @@ button {
 }
 
 .menu-item:hover {
-    color: #fff;
+    color: var(--fg-color, #fff);
     background: #111;
 }
 
@@ -288,6 +289,45 @@ button {
     color: #888;
 }
 
+.menu-close {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 51;
+    width: 44px;
+    height: 44px;
+    border: none;
+    background: none;
+    color: var(--fg-color, #fff);
+    font-size: 2rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.menu-checklist {
+    display: flex;
+    flex-direction: column;
+}
+
+.menu-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+}
+
+.menu-checkbox input {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 auto;
+}
+
+.menu-apply {
+    margin-top: 8px;
+    color: #7fa8e2;
+    text-align: center;
+}
+
 /* =======================================================
    Settings
    ======================================================= */
@@ -307,11 +347,11 @@ button {
 }
 
 .settings-nav a:hover {
-    color: #fff;
+    color: var(--fg-color, #fff);
 }
 
 .settings-nav a.active {
-    color: #fff;
+    color: var(--fg-color, #fff);
     text-decoration: underline;
 }
 
@@ -339,7 +379,7 @@ button {
     padding: 20px;
     border: 1px solid #333;
     background: none;
-    color: #fff;
+    color: var(--fg-color, #fff);
 }
 
 .choice button:hover {
@@ -422,7 +462,7 @@ body.editing #field {
 
 #mBefore,
 #mAfter {
-    color: #fff;
+    color: var(--fg-color, #fff);
 }
 
 #field.stale #mBefore,
@@ -456,7 +496,7 @@ body.editing #field {
 }
 
 #selected a:hover {
-    color: #fff;
+    color: var(--fg-color, #fff);
 }
 
 #results {
@@ -547,6 +587,68 @@ body.editing #field {
     margin-right: 10px;
 }
 
+/* Result cards - stacked layout (type + title/preview + wrapping
+   metadata) instead of a single truncated line, so a title, tags, and
+   metadata can all actually fit on a narrow screen. */
+
+.record-card {
+    display: block;
+    padding: 14px 0;
+    border-bottom: 1px solid #222;
+    text-decoration: none;
+    color: inherit;
+}
+
+.record-card:hover .record-title,
+.record-card:hover .record-preview:not(.faint) {
+    text-decoration: underline;
+}
+
+.record-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.record-title {
+    font-weight: bold;
+    font-size: var(--row-font-size);
+    color: var(--fg-color, #fff);
+}
+
+.record-preview {
+    margin-top: 4px;
+    color: #aaa;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.record-preview.faint {
+    color: #555;
+    font-style: italic;
+}
+
+.record-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.record-tag {
+    color: #7fa8e2;
+}
+
+.record-id {
+    color: #555;
+}
+
 .message {
     margin: var(--section-gap) 0 0;
     font-style: italic;
@@ -554,13 +656,48 @@ body.editing #field {
     white-space: pre-wrap;
 }
 
+.help-card {
+    margin: var(--section-gap) 0 0;
+}
+
+.help-item {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid #222;
+}
+
+.help-cmd {
+    flex: 0 0 auto;
+    min-width: 9ch;
+    color: #f2d94e;
+    font-weight: bold;
+}
+
+.help-desc {
+    color: #888;
+}
+
+.help-extra {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #222;
+    color: #888;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
 /* =======================================================
    File view
    ======================================================= */
 
 #filetitle {
-    margin-bottom: var(--section-gap);
+    margin-bottom: 12px;
     color: #ccc;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
 }
 
 #saveStatus {
@@ -573,7 +710,7 @@ body.editing #field {
     padding: 0;
     border: none;
     background: none;
-    color: #fff;
+    color: var(--fg-color, #fff);
     text-decoration: underline;
     font: inherit;
     cursor: pointer;
@@ -586,6 +723,12 @@ body.editing #field {
 #fileread {
     margin: 0;
     width: 100%;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.line-meta {
+    color: #7fa8e2;
 }
 
 .line.hl {
@@ -609,7 +752,7 @@ body.editing #field {
     resize: none;
     overflow: hidden;
     background: transparent;
-    color: #fff;
+    color: var(--fg-color, #fff);
     font: inherit;
     line-height: 1.65;
 }
@@ -659,6 +802,7 @@ body.editing #field {
 
     :root {
         --input-font-size: 1.6rem;
+        --row-font-size: 1.15rem;
     }
 
     .topbar {
@@ -669,10 +813,6 @@ body.editing #field {
 
     .menu-overlay {
         padding: 20px;
-    }
-
-    .menu-item {
-        font-size: 1.15rem;
     }
 
     .record {
@@ -689,6 +829,10 @@ body.editing #field {
 
     .record-dots {
         letter-spacing: 0;
+    }
+
+    .record-card {
+        padding: 10px 0;
     }
 
     #results {

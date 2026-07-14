@@ -28,6 +28,8 @@
 
 {% endif %}
 
+{% include "_help.html" %}
+
 {% if apps %}
 
 <div id="applist">
@@ -56,15 +58,22 @@
 
 {% for record in records %}
 
-<a class="record" href="/apps/ark/?file={{ record.path }}&find={{ record.text | urlencode }}">
+<a class="record-card" href="/apps/ark/?file={{ record.path }}&find={{ (record.preview or record.title or '') | urlencode }}">
 
+<div class="record-head">
 <span class="record-type record-type-{{ record.type }}">{{ record.type }}</span>
+{% if record.title %}<span class="record-title">{{ record.title }}</span>{% endif %}
+</div>
 
-<span class="record-text">{{ record.text }}</span>
+{% if record.preview %}
+<div class="record-preview">{{ record.preview }}</div>
+{% elif not record.title %}
+<div class="record-preview faint">[no text]</div>
+{% endif %}
 
-<span class="record-dots"></span>
-
-<span class="record-meta">{{ record.meta }}</span>
+{% if record.meta %}
+<div class="record-meta-row"><span class="record-id">{{ record.meta }}</span></div>
+{% endif %}
 
 </a>
 

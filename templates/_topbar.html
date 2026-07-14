@@ -8,6 +8,8 @@
 
 <div id="menu-group" class="menu-overlay hidden">
 
+<button type="button" class="menu-close" onclick="closeMenus()" aria-label="close">&times;</button>
+
 <div class="menu-whoami">logged in as {{ current_user_ctx.username | lower }}</div>
 
 {% for g in user_groups %}
@@ -23,6 +25,8 @@
 </div>
 
 <div id="menu-app" class="menu-overlay hidden">
+
+<button type="button" class="menu-close" onclick="closeMenus()" aria-label="close">&times;</button>
 
 <div class="menu-whoami">logged in as {{ current_user_ctx.username | lower }}</div>
 
@@ -43,19 +47,17 @@
 
 {% if workspace_toggles is defined %}
 <div class="menu-section">workspaces</div>
+<form method="post" action="/apps/documents/visibility" class="menu-checklist">
+<input type="hidden" name="all_ids" value="{% for w in workspace_toggles %}{{ w.id }}{{ "," if not loop.last }}{% endfor %}">
 {% for w in workspace_toggles %}
-<form method="post" action="/apps/documents/visibility" class="menu-form">
-<input type="hidden" name="workspace_id" value="{{ w.id }}">
-<input type="hidden" name="visible" value="{{ 0 if w.visible else 1 }}">
-<button type="submit" class="menu-item menu-sub">{{ "☑" if w.visible else "☐" }} {{ w.name | lower }}</button>
+<label class="menu-item menu-sub menu-checkbox">
+<input type="checkbox" name="visible_ids" value="{{ w.id }}" {% if w.visible %}checked{% endif %}>
+{{ w.group_name | lower }} / {{ w.name | lower }}
+</label>
+{% endfor %}
+<button type="submit" class="menu-item menu-sub menu-apply">apply</button>
 </form>
-{% endfor %}
 {% endif %}
-
-<div class="menu-section">apps</div>
-{% for a in nav_apps %}
-<a href="/apps/{{ a.id }}/" class="menu-item {{ 'active' if a.id == app_id }}">{{ a.name | lower }}</a>
-{% endfor %}
 
 <a href="/logout" class="menu-item menu-logout">logout</a>
 

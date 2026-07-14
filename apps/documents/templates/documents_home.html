@@ -32,6 +32,8 @@
 
 {% endif %}
 
+{% include "_help.html" %}
+
 {% if selected %}
 
 <div id="selected">
@@ -52,13 +54,24 @@
 
 {% for note in notes %}
 
-<a class="record" href="/apps/ark/?file={{ note.path }}&workspace={{ note.workspace_id }}&app=Documents&home=/apps/documents/&find={{ note.content | urlencode }}">
+<a class="record-card" href="/apps/ark/?file={{ note.path }}&workspace={{ note.workspace_id }}&app=Documents&home=/apps/documents/&find={{ (note.preview or note.title or '') | urlencode }}">
 
-<span class="record-text">{{ note.content }}</span>
+<div class="record-head">
+<span class="record-type record-type-{{ note.type }}">{{ note.type }}</span>
+{% if note.title %}<span class="record-title">{{ note.title }}</span>{% endif %}
+</div>
 
-<span class="record-dots"></span>
+{% if note.preview %}
+<div class="record-preview">{{ note.preview }}</div>
+{% elif not note.title %}
+<div class="record-preview faint">[no text]</div>
+{% endif %}
 
-<span class="record-meta">{% if show_origin %}<span class="record-origin">{{ note.workspace_label | lower }}</span>{% endif %}{% for t in note.tags %}#{{ t }} {% endfor %}</span>
+<div class="record-meta-row">
+{% if show_origin %}<span class="record-origin">{{ note.workspace_label | lower }}</span>{% endif %}
+{% for t in note.tags %}<span class="record-tag">#{{ t }}</span>{% endfor %}
+{% if note.meta %}<span class="record-id">{{ note.meta }}</span>{% endif %}
+</div>
 
 </a>
 

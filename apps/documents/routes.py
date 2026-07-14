@@ -8,6 +8,12 @@ from apps.ark.routes import new_file_path, create_new_file, resolve_active_works
 from . import bp, NAME
 from .tags import list_tags, notes_by_tags
 
+DOCS_HELP = [
+    ("<tag>", "filter notes by tag"),
+    ("new <file>", "create a file"),
+    ("help", "this message"),
+]
+
 
 def visible_workspaces(user):
     records = core_groups.list_visible_workspaces(user["id"], "ark")
@@ -37,26 +43,17 @@ def home():
         raw_query = request.form.get("query", "").strip()
 
         if raw_query.lower() == "help":
-            message = (
-                "home commands:\n"
-                "  <tag>        filter notes by tag\n"
-                "  new <file>   create a file\n"
-                "  help         this message\n\n"
-                "use the workspaces menu (tap the app name above) to choose\n"
-                "which workspaces' notes show up here."
-            )
-
             return render_template(
                 "documents_home.html",
                 user=user,
                 app_label=NAME,
-                app_id="documents",
                 app_home="/apps/documents/",
                 selected=[],
                 available=[t for t in all_tags if t not in selected],
                 notes=notes_by_tags(workspaces, selected),
                 show_origin=len(workspaces) > 1,
-                message=message,
+                help_commands=DOCS_HELP,
+                help_more_hint="use the workspaces menu (tap the app name above) to choose which workspaces' notes show up here.",
                 workspace_toggles=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
             )
 
@@ -103,7 +100,6 @@ def home():
         "documents_home.html",
         user=user,
         app_label=NAME,
-        app_id="documents",
         app_home="/apps/documents/",
         selected=selected_view,
         available=available,
@@ -120,9 +116,10 @@ def toggle_visibility():
     if not user:
         return redirect("/login")
 
-    workspace_id = int(request.form.get("workspace_id", 0))
-    visible = request.form.get("visible") == "1"
+    visible_ids = {int(v) for v in request.form.getlist("visible_ids")}
+    all_ids = {int(v) for v in request.form.get("all_ids", "").split(",") if v}
 
-    core_groups.set_workspace_visibility(user["id"], workspace_id, visible)
+    for workspace_id in all_ids:
+        core_groups.set_workspace_visibility(user["id"], workspace_id, workspace_id in visible_ids)
 
     return redirect("/apps/documents/")

@@ -11,6 +11,10 @@
 
 <link rel="stylesheet" href="/static/home.css">
 
+{% if current_user_ctx %}
+<style>:root { --bg-color: {{ bg_color }}; --fg-color: {{ fg_color }}; }</style>
+{% endif %}
+
 </head>
 
 <body class="{{ page_class }}">

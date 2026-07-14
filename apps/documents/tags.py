@@ -1,6 +1,7 @@
 import re
 
 from apps.ark.runner import run
+from core.text import split_title
 
 TAG_RE = re.compile(r"#([^\s;]+)")
 
@@ -10,10 +11,19 @@ def _tags_from_meta(meta):
 
 
 def _as_note(record, workspace):
+    """`record["meta"]` doubles as the tag-scan source (needs the full
+    raw text, e.g. an entire file's contents for root .txt notes) and
+    `display_meta` is what actually renders in the card - short bracket
+    metadata for real Ark records, blank for plain files where there's no
+    such thing."""
+
     return {
-        "content": record["text"],
+        "type": record.get("type", "note"),
+        "title": record["title"],
+        "preview": record["preview"],
         "tags": _tags_from_meta(record["meta"]),
         "path": record["path"],
+        "meta": record.get("display_meta", record["meta"]),
         "workspace_id": workspace["id"],
         "workspace_label": workspace["label"],
     }
@@ -35,9 +45,12 @@ def _root_txt_notes(ws):
             continue
 
         content = f.read_text(encoding="utf-8", errors="replace")
-        preview = content.strip().splitlines()[0] if content.strip() else f.name
+        title, preview = split_title(content)
 
-        notes.append(_as_note({"text": preview, "meta": content, "path": f.name}, ws))
+        notes.append(_as_note(
+            {"title": title, "preview": preview, "meta": content, "display_meta": "", "path": f.name},
+            ws,
+        ))
 
     return notes
 

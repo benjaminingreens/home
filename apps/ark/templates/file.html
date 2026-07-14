@@ -10,7 +10,7 @@
 
 </div>
 
-<pre id="fileread">{% for line in file_lines %}<span class="line{% if loop.index0 == highlight_line %} hl{% endif %}">{{ line }}</span>
+<pre id="fileread">{% for line in file_lines %}<span class="line{% if loop.index0 == highlight_line %} hl{% endif %}">{{ line | safe }}</span>
 {% endfor %}</pre>
 
 <div id="taWrap" style="display: none;">
@@ -116,6 +116,19 @@ let undoStack = [];
 
 function escapeHtml(s) {
     return s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+}
+
+function highlightMeta(line) {
+    const m = line.match(/(\{[^{}]*\})(;;)?\s*$/);
+
+    if (!m) return escapeHtml(line);
+
+    let html = escapeHtml(line.slice(0, m.index));
+    html += '<span class="line-meta">' + escapeHtml(m[1]) + "</span>";
+
+    if (m[2]) html += escapeHtml(m[2]);
+
+    return html;
 }
 
 function autosize() {
@@ -253,7 +266,7 @@ function save() {
 
         const lines = textarea.value.split("\n");
         fileread.innerHTML = lines
-            .map(l => '<span class="line">' + escapeHtml(l) + "</span>")
+            .map(l => '<span class="line">' + highlightMeta(l) + "</span>")
             .join("\n");
 
         showSaveStatus("saved", false);
