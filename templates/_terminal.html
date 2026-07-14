@@ -36,13 +36,15 @@
 
 {% for a in apps %}
 
-<a class="record" href="/apps/{{ a.id }}/" data-id="{{ a.id | lower }}" data-name="{{ a.name | lower }}">
+<a class="record-card" href="/apps/{{ a.id }}/" data-id="{{ a.id | lower }}" data-name="{{ a.name | lower }}">
 
-<span class="record-text">{{ a.name | lower }}</span>
+<div class="record-head">
+<span class="record-title">{{ a.name | lower }}</span>
+</div>
 
-<span class="record-dots"></span>
-
-<span class="record-meta">{{ a.description }}</span>
+{% if a.description %}
+<div class="record-preview">{{ a.description }}</div>
+{% endif %}
 
 </a>
 
@@ -66,13 +68,13 @@
 </div>
 
 {% if record.preview %}
-<div class="record-preview">{{ record.preview }}</div>
+<div class="record-preview{% if not record.title %} primary{% endif %}">{{ record.preview }}</div>
 {% elif not record.title %}
 <div class="record-preview faint">[no text]</div>
 {% endif %}
 
 {% if record.meta %}
-<div class="record-meta-row"><span class="record-id">{{ record.meta }}</span></div>
+<div class="record-meta-row"><span class="record-id" style="color: {{ record.meta | tag_color }}">{{ record.meta }}</span></div>
 {% endif %}
 
 </a>

@@ -56,21 +56,21 @@
 
 <a class="record-card" href="/apps/ark/?file={{ note.path }}&workspace={{ note.workspace_id }}&app=Documents&home=/apps/documents/&find={{ (note.preview or note.title or '') | urlencode }}">
 
+{% if note.title %}
 <div class="record-head">
-<span class="record-type record-type-{{ note.type }}">{{ note.type }}</span>
-{% if note.title %}<span class="record-title">{{ note.title }}</span>{% endif %}
+<span class="record-title">{{ note.title }}</span>
 </div>
+{% endif %}
 
 {% if note.preview %}
-<div class="record-preview">{{ note.preview }}</div>
+<div class="record-preview{% if not note.title %} primary{% endif %}">{{ note.preview }}</div>
 {% elif not note.title %}
 <div class="record-preview faint">[no text]</div>
 {% endif %}
 
 <div class="record-meta-row">
 {% if show_origin %}<span class="record-origin">{{ note.workspace_label | lower }}</span>{% endif %}
-{% for t in note.tags %}<span class="record-tag">#{{ t }}</span>{% endfor %}
-{% if note.meta %}<span class="record-id">{{ note.meta }}</span>{% endif %}
+{% if note.meta %}<span class="record-id" style="color: {{ note.meta | tag_color }}">{{ note.meta }}</span>{% endif %}
 </div>
 
 </a>

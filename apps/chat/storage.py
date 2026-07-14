@@ -37,6 +37,17 @@ def load_messages(group_id, limit=200):
 
         if len(parts) == 3:
             timestamp, username, text = parts
-            messages.append({"timestamp": timestamp, "username": username, "text": text})
+
+            try:
+                display_time = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S").strftime("%d/%m %H:%M")
+            except ValueError:
+                display_time = timestamp
+
+            messages.append({
+                "timestamp": timestamp,
+                "display_time": display_time,
+                "username": username,
+                "text": text,
+            })
 
     return messages

@@ -7,15 +7,12 @@ from core.auth import current_user
 from core.users import verify_password, update_password, create, list_users
 from core.db import connect
 from core import groups as core_groups
+from core.colors import TAG_PALETTE as ACCENT_PALETTE
 
 from . import bp, NAME
 
 VALID_VISIBILITY = ("private", "server", "federated")
 
-ACCENT_PALETTE = (
-    "#7fa8e2", "#7fe28a", "#f2d94e", "#ff8f8f",
-    "#d98fff", "#ff8fd9", "#8fffe2", "#ffb347",
-)
 BACKGROUND_PALETTE = (
     "#000000", "#0a0a0a", "#0d1117", "#1a1a2e", "#001a0d", "#1a0a1a",
 )

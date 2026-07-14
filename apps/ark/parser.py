@@ -3,6 +3,7 @@ import re
 from markupsafe import Markup, escape
 
 from core.text import split_title
+from core.colors import tag_color
 
 RECORD = re.compile(
     r"^(note|todo|evnt):\s*(.*?)\s*(?:({.*?})\s*)?\[(.*?)\]$"
@@ -75,7 +76,8 @@ def highlight_meta(line):
 
     prefix = line[:m.start()]
     html = escape(prefix)
-    html += Markup('<span class="line-meta">') + escape(m.group(1)) + Markup("</span>")
+    color = tag_color(m.group(1))
+    html += Markup(f'<span class="line-meta" style="color: {color}">') + escape(m.group(1)) + Markup("</span>")
 
     if m.group(2):
         html += escape(m.group(2))

@@ -37,7 +37,7 @@ body {
         "Liberation Mono",
         "Courier New",
         monospace;
-    font-size: 26px;
+    font-size: 28px;
     line-height: 1.65;
     overflow-x: hidden;
 }
@@ -46,7 +46,7 @@ body {
     --input-font-size: 2.3rem;
     --input-line-height: 1.5;
     --section-gap: 48px;
-    --row-font-size: 1.7rem;
+    --row-font-size: 1.85rem;
 }
 
 .content {
@@ -186,6 +186,10 @@ button {
     margin-bottom: var(--section-gap);
     font-size: 2rem;
     font-style: italic;
+}
+
+body.editor .topbar {
+    display: none;
 }
 
 .topbar-group,
@@ -626,6 +630,15 @@ body.editing #field {
     -webkit-box-orient: vertical;
 }
 
+.record-preview.primary {
+    /* No title above it, so this line IS the note's content, not a
+       secondary preview snippet - render at full strength instead of
+       the muted gray used when it's sitting under a bold title. */
+    color: var(--fg-color, #fff);
+    font-size: var(--row-font-size);
+    -webkit-line-clamp: 3;
+}
+
 .record-preview.faint {
     color: #555;
     font-style: italic;
@@ -666,6 +679,11 @@ body.editing #field {
     gap: 6px 16px;
     padding: 10px 0;
     border-bottom: 1px solid #222;
+    cursor: pointer;
+}
+
+.help-item:hover {
+    background: #111;
 }
 
 .help-cmd {
@@ -689,12 +707,80 @@ body.editing #field {
 }
 
 /* =======================================================
+   Chat - flat black/white log, no bubbles, ported from the
+   user's legacy single-room chat design.
+   ======================================================= */
+
+.chat-switcher {
+    margin-bottom: var(--section-gap);
+}
+
+.chat-switcher select {
+    border: none;
+    background: none;
+    color: #666;
+    font: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.chat-switcher select:hover {
+    color: var(--fg-color, #fff);
+}
+
+#chat-messages {
+    margin-bottom: var(--section-gap);
+}
+
+.chat-message {
+    margin-bottom: 26px;
+}
+
+.chat-meta {
+    font-size: 0.7em;
+    margin-bottom: 2px;
+}
+
+.chat-name {
+    font-weight: bold;
+}
+
+.chat-time {
+    color: #666;
+    margin-left: 0.7em;
+}
+
+.chat-body {
+    color: var(--fg-color, #fff);
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+}
+
+#chat-input {
+    display: block;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    border: none;
+    outline: none;
+    resize: none;
+    overflow: hidden;
+    background: transparent;
+    color: var(--fg-color, #fff);
+    font: inherit;
+    font-size: inherit;
+    line-height: 1.65;
+    min-height: 1.65em;
+    max-height: 30vh;
+}
+
+/* =======================================================
    File view
    ======================================================= */
 
-#filetitle {
-    margin-bottom: 12px;
-    color: #ccc;
+#editorbar {
+    margin-bottom: 8px;
+    font-size: 1rem;
     overflow-wrap: break-word;
     word-break: break-word;
     hyphens: auto;
@@ -702,18 +788,36 @@ body.editing #field {
 
 #saveStatus {
     font-style: italic;
+    color: #888;
     margin-left: 8px;
 }
 
 #toggleEdit,
+.filename-btn,
 .linkbtn {
     padding: 0;
     border: none;
     background: none;
-    color: var(--fg-color, #fff);
     text-decoration: underline;
     font: inherit;
+    font-size: inherit;
     cursor: pointer;
+}
+
+#toggleEdit.reading {
+    color: #7fe28a;
+}
+
+#toggleEdit.writing {
+    color: #ff8f8f;
+}
+
+.filename-btn {
+    color: #ccc;
+}
+
+.linkbtn {
+    color: var(--fg-color, #fff);
 }
 
 .linkbtn:hover {
@@ -797,12 +901,12 @@ body.editing #field {
 
     body {
         padding: 16px;
-        font-size: 18px;
+        font-size: 19px;
     }
 
     :root {
         --input-font-size: 1.6rem;
-        --row-font-size: 1.15rem;
+        --row-font-size: 1.25rem;
     }
 
     .topbar {

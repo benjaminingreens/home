@@ -2,11 +2,11 @@
 
 {% block body %}
 
-<h1>chat</h1>
+<div id="chat-page">
 
 {% if groups|length > 1 %}
 
-<form method="post" class="reset-form" style="margin-bottom: var(--section-gap);">
+<form method="post" class="chat-switcher">
 <input type="hidden" name="action" value="switch">
 <select name="group_id" onchange="this.form.submit()">
 {% for g in groups %}
@@ -19,18 +19,16 @@
 
 {% if active_group %}
 
-<div id="results">
+<div id="chat-messages">
 
 {% for m in messages %}
 
-<div class="record" style="white-space: normal;">
-
-<span class="record-text">{{ m.username }}: {{ m.text }}</span>
-
-<span class="record-dots"></span>
-
-<span class="record-meta">{{ m.timestamp }}</span>
-
+<div class="chat-message">
+<div class="chat-meta">
+<span class="chat-name" style="color: {{ m.username | tag_color }}">{{ m.username | lower }}</span>
+<span class="chat-time">{{ m.display_time }}</span>
+</div>
+<div class="chat-body">{{ m.text }}</div>
 </div>
 
 {% else %}
@@ -41,16 +39,17 @@
 
 </div>
 
-<form method="post" class="authform">
+<form method="post" id="chat-form">
 
 <input type="hidden" name="action" value="send">
 
-<label>
-<span>message</span>
-<input name="text" autocomplete="off" autofocus>
-</label>
-
-<button type="submit">send</button>
+<textarea
+    name="text"
+    id="chat-input"
+    placeholder="start typing and press enter to send"
+    spellcheck="false"
+    autocomplete="off"
+    autofocus></textarea>
 
 </form>
 
@@ -60,5 +59,41 @@
 <a href="/apps/settings/groups">settings</a>.</p>
 
 {% endif %}
+
+</div>
+
+<script>
+
+const chatMessages = document.getElementById("chat-messages");
+
+if (chatMessages) {
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+const chatForm = document.getElementById("chat-form");
+const chatInput = document.getElementById("chat-input");
+
+if (chatInput) {
+
+    function resizeChatInput() {
+        chatInput.style.height = "0px";
+        chatInput.style.height = chatInput.scrollHeight + "px";
+    }
+
+    chatInput.addEventListener("input", resizeChatInput);
+
+    chatInput.addEventListener("keydown", e => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            if (chatInput.value.trim()) chatForm.submit();
+        }
+    });
+
+    resizeChatInput();
+    chatInput.focus();
+
+}
+
+</script>
 
 {% endblock %}

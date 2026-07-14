@@ -3,7 +3,7 @@
 <div class="help-card">
 
 {% for cmd, desc in help_commands %}
-<div class="help-item"><span class="help-cmd">{{ cmd }}</span><span class="help-desc">{{ desc }}</span></div>
+<div class="help-item" data-fill="{{ cmd }}"><span class="help-cmd">{{ cmd }}</span><span class="help-desc">{{ desc }}</span></div>
 {% endfor %}
 
 {% if help_more_hint %}
@@ -15,5 +15,27 @@
 {% endif %}
 
 </div>
+
+<script>
+document.querySelectorAll('.help-item[data-fill]').forEach(function (el) {
+    el.addEventListener('click', function () {
+        const query = document.getElementById('query');
+        if (!query) return;
+
+        const fill = el.dataset.fill;
+        query.value = fill;
+        query.focus();
+
+        const m = fill.match(/<[^>]+>/);
+        if (m) {
+            query.setSelectionRange(m.index, m.index + m[0].length);
+        } else {
+            query.setSelectionRange(fill.length, fill.length);
+        }
+
+        if (typeof update === 'function') update();
+    });
+});
+</script>
 
 {% endif %}

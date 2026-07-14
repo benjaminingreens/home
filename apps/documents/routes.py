@@ -10,8 +10,8 @@ from .tags import list_tags, notes_by_tags
 
 DOCS_HELP = [
     ("<tag>", "filter notes by tag"),
-    ("new <file>", "create a file"),
-    ("help", "this message"),
+    ("/new <file>", "create a file"),
+    ("/help", "this message"),
 ]
 
 
@@ -42,7 +42,39 @@ def home():
     if request.method == "POST":
         raw_query = request.form.get("query", "").strip()
 
-        if raw_query.lower() == "help":
+        if raw_query.startswith("/"):
+            command = raw_query[1:].strip()
+            cmd_lower = command.lower()
+
+            if cmd_lower == "help":
+                return render_template(
+                    "documents_home.html",
+                    user=user,
+                    app_label=NAME,
+                    app_home="/apps/documents/",
+                    selected=[],
+                    available=[t for t in all_tags if t not in selected],
+                    notes=notes_by_tags(workspaces, selected),
+                    show_origin=len(workspaces) > 1,
+                    help_commands=DOCS_HELP,
+                    help_more_hint="use the workspaces menu (tap the app name above) to choose which workspaces' notes show up here.",
+                    workspace_toggles=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
+                )
+
+            if cmd_lower.startswith("new "):
+                relpath = new_file_path(command[4:])
+
+                if relpath:
+                    active = resolve_active_workspace(user)
+                    target = core_workspaces.path(active["group_slug"], "ark", active["name"])
+                    create_new_file(target, relpath)
+
+                    return redirect(
+                        f"/apps/ark/?file={relpath}&app=Documents&home=/apps/documents/"
+                    )
+
+                return redirect("/apps/documents/")
+
             return render_template(
                 "documents_home.html",
                 user=user,
@@ -52,24 +84,9 @@ def home():
                 available=[t for t in all_tags if t not in selected],
                 notes=notes_by_tags(workspaces, selected),
                 show_origin=len(workspaces) > 1,
-                help_commands=DOCS_HELP,
-                help_more_hint="use the workspaces menu (tap the app name above) to choose which workspaces' notes show up here.",
+                message=f"unknown command: /{cmd_lower}",
                 workspace_toggles=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
             )
-
-        if raw_query.lower().startswith("new "):
-            relpath = new_file_path(raw_query[4:])
-
-            if relpath:
-                active = resolve_active_workspace(user)
-                target = core_workspaces.path(active["group_slug"], "ark", active["name"])
-                create_new_file(target, relpath)
-
-                return redirect(
-                    f"/apps/ark/?file={relpath}&app=Documents&home=/apps/documents/"
-                )
-
-            return redirect("/apps/documents/")
 
         query = raw_query.lstrip("#").lower()
 

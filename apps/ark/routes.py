@@ -112,9 +112,12 @@ ARK_HELP = [
     ("note: <text>", "save a quick note"),
     ("todo: <text>", "save a task"),
     ("evnt: <text>", "save an event"),
-    ("new <file>", "create a file"),
-    ("sync", "push and pull this workspace"),
-    ("home", "go to the home screen"),
+    ("tidy", "sort inbox into note/todo/evnt (dry run - shows what would move)"),
+    ("/tidy", "same, but actually applies the changes"),
+    ("/new <file>", "create a file"),
+    ("/sync", "push and pull this workspace"),
+    ("/home", "go to the home screen"),
+    ("/help", "this message"),
 ]
 
 
@@ -122,23 +125,38 @@ def process(workspace, query):
     """Returns (added, records, message, help_commands, help_more_hint,
     help_extra) - the last three are None outside the help/help-more
     paths, which render.html renders via the shared _help.html partial
-    instead of stuffing curated text into the generic `message` string."""
+    instead of stuffing curated text into the generic `message` string.
+
+    A leading "/" marks a HOME system command (sync, help, tidy --apply);
+    anything else is handed straight to Ark's own query engine untouched,
+    including a bare "tidy" (real Ark CLI dry-run behavior) - this is the
+    boundary that keeps HOME's shortcuts from colliding with Ark's own
+    command/query namespace."""
 
     query = query.strip()
 
     if not query:
         return False, [], "", None, None, None
 
-    if query.lower() == "sync":
-        _, message = sync(workspace)
-        return False, [], message, None, None, None
+    if query.startswith("/"):
+        command = query[1:].strip().lower()
 
-    if query.lower() == "help":
-        return False, [], "", ARK_HELP, "type 'help more' to see every ark command", None
+        if command == "sync":
+            _, message = sync(workspace)
+            return False, [], message, None, None, None
 
-    if query.lower() == "help more":
-        _, ark_help, _ = run(workspace, "help")
-        return False, [], "", ARK_HELP, None, ark_help
+        if command == "help":
+            return False, [], "", ARK_HELP, "type '/help more' to see every ark command", None
+
+        if command == "help more":
+            _, ark_help, _ = run(workspace, "help")
+            return False, [], "", ARK_HELP, None, ark_help
+
+        if command == "tidy":
+            _, stdout, error = run(workspace, "tidy --apply")
+            return False, [], error or stdout or "nothing to tidy", None, None, None
+
+        return False, [], f"unknown command: /{command}", None, None, None
 
     if query.startswith(("note:", "todo:", "evnt:")):
         add(workspace, query)
@@ -191,6 +209,7 @@ def home():
 
         return render_template(
             "file.html",
+            page_class="editor",
             file_path=file_path,
             file_content=file_content,
             file_lines=[highlight_meta(l) for l in file_lines],
@@ -211,17 +230,21 @@ def home():
 
         if query:
 
-            if query.lower() == "home":
-                return redirect("/")
+            if query.startswith("/"):
+                command = query[1:].strip()
+                cmd_lower = command.lower()
 
-            if query.lower().startswith("new "):
-                relpath = new_file_path(query[4:])
+                if cmd_lower == "home":
+                    return redirect("/")
 
-                if relpath:
-                    create_new_file(workspace, relpath)
-                    return redirect(f"/apps/ark/?file={relpath}")
+                if cmd_lower.startswith("new "):
+                    relpath = new_file_path(command[4:])
 
-                return redirect("/apps/ark/")
+                    if relpath:
+                        create_new_file(workspace, relpath)
+                        return redirect(f"/apps/ark/?file={relpath}")
+
+                    return redirect("/apps/ark/")
 
             added, records, message, help_commands, help_more_hint, help_extra = process(workspace, query)
 

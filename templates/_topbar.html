@@ -12,6 +12,8 @@
 
 <div class="menu-whoami">logged in as {{ current_user_ctx.username | lower }}</div>
 
+<a href="/" class="menu-item">go home</a>
+
 {% for g in user_groups %}
 <form method="post" action="/group" class="menu-form">
 <input type="hidden" name="group_id" value="{{ g.id }}">
@@ -31,6 +33,13 @@
 <div class="menu-whoami">logged in as {{ current_user_ctx.username | lower }}</div>
 
 <a href="/" class="menu-item">go home</a>
+
+{% if nav_apps %}
+<div class="menu-section">apps</div>
+{% for a in nav_apps %}
+<a href="/apps/{{ a.id }}/" class="menu-item menu-sub">{{ a.name | lower }}</a>
+{% endfor %}
+{% endif %}
 
 {% if workspace_options is defined %}
 <div class="menu-section">select workspace</div>

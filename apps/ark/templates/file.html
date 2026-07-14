@@ -4,9 +4,11 @@
 
 <div id="editorpane">
 
-<div id="filetitle">
+<div id="editorbar">
 
-<button type="button" id="toggleEdit">reading</button>: {{ file_path }} <span id="saveStatus"></span>
+<button type="button" id="toggleEdit" class="reading">reading</button>:
+<button type="button" id="filenameBtn" class="filename-btn" onclick="openMenu('app')">{{ file_path }}</button>
+<span id="saveStatus"></span>
 
 </div>
 
@@ -100,7 +102,9 @@ const helpview = document.getElementById("helpview");
 const cursormeasure = document.getElementById("cursormeasure");
 const blockcursor = document.getElementById("blockcursor");
 const saveStatus = document.getElementById("saveStatus");
+const filenameBtn = document.getElementById("filenameBtn");
 let saveStatusTimer = null;
+let autosaveTimer = null;
 
 let editing = false;
 let helpOpen = false;
@@ -118,13 +122,25 @@ function escapeHtml(s) {
     return s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 }
 
+// Keep in sync with core/colors.py's TAG_PALETTE + tag_color().
+const TAG_PALETTE = [
+    "#7fa8e2", "#7fe28a", "#f2d94e", "#ff8f8f",
+    "#d98fff", "#ff8fd9", "#8fffe2", "#ffb347",
+];
+
+function tagColor(s) {
+    let sum = 0;
+    for (let i = 0; i < s.length; i++) sum += s.charCodeAt(i);
+    return TAG_PALETTE[sum % TAG_PALETTE.length];
+}
+
 function highlightMeta(line) {
     const m = line.match(/(\{[^{}]*\})(;;)?\s*$/);
 
     if (!m) return escapeHtml(line);
 
     let html = escapeHtml(line.slice(0, m.index));
-    html += '<span class="line-meta">' + escapeHtml(m[1]) + "</span>";
+    html += '<span class="line-meta" style="color: ' + tagColor(m[1]) + '">' + escapeHtml(m[1]) + "</span>";
 
     if (m[2]) html += escapeHtml(m[2]);
 
@@ -229,6 +245,7 @@ function applyVisibility() {
 function setEditing(next) {
     editing = next;
     toggleEdit.textContent = editing ? "writing" : "reading";
+    toggleEdit.className = editing ? "writing" : "reading";
     applyVisibility();
     pendingKey = null;
     pendingOperator = null;
@@ -257,6 +274,10 @@ function showSaveStatus(text, isError) {
 }
 
 function save() {
+    clearTimeout(autosaveTimer);
+    saveStatus.textContent = "saving…";
+    saveStatus.className = "notice";
+
     return fetch(form.action, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -273,6 +294,11 @@ function save() {
     }).catch(() => {
         showSaveStatus("save failed", true);
     });
+}
+
+function scheduleAutosave() {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => { if (editing) save(); }, 1200);
 }
 
 function lineBounds(pos) {
@@ -737,14 +763,32 @@ function handleNormalKey(e) {
 
 toggleEdit.addEventListener("click", () => {
     if (helpOpen) return;
-    setEditing(!editing);
+
+    if (editing) {
+        // Was silently discarding unsaved changes before - turning
+        // writing back to reading now saves first, same as Escape.
+        save().then(() => setEditing(false));
+    } else {
+        setEditing(true);
+    }
 });
 
-textarea.addEventListener("input", () => { autosize(); updateBlockCursor(); });
+textarea.addEventListener("input", () => { autosize(); updateBlockCursor(); scheduleAutosave(); });
 textarea.addEventListener("click", updateBlockCursor);
+textarea.addEventListener("blur", () => { if (editing) save(); });
 
 document.addEventListener("selectionchange", () => {
     if (document.activeElement === textarea) updateBlockCursor();
+});
+
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden && editing) save();
+});
+
+window.addEventListener("pagehide", () => {
+    if (editing) {
+        navigator.sendBeacon(form.action, new URLSearchParams(new FormData(form)));
+    }
 });
 
 document.addEventListener("keydown", e => {

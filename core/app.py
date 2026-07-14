@@ -18,7 +18,7 @@ from .storage import init
 from .auth import login, logout
 from .users import has_any_users, create_first_admin
 from . import groups as core_groups
-from .colors import contrasting_text_color
+from .colors import contrasting_text_color, tag_color
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -40,6 +40,8 @@ else:
         "Sessions will not persist across restarts. Set HOME_SECRET_KEY in production."
     )
     app.secret_key = secrets.token_hex(32)
+
+app.jinja_env.filters["tag_color"] = tag_color
 
 
 EXEMPT_PATHS = ("/login", "/logout", "/register", "/setup")
@@ -92,6 +94,7 @@ def inject_topbar_context():
         "current_user_ctx": user,
         "current_group": {"id": active["group_id"], "name": active["group_name"]},
         "user_groups": core_groups.list_user_groups(user["id"]),
+        "nav_apps": APPS,
         "bg_color": bg_color,
         "fg_color": contrasting_text_color(bg_color),
     }
@@ -149,10 +152,15 @@ def index():
 
         if query:
 
-            if query.lower() == "help":
+            # There's no "app" to defer to on the launcher itself, so bare
+            # input is already system-level here - a leading "/" is
+            # accepted too, just for consistency with every other screen.
+            lookup = query.lstrip("/")
+
+            if lookup.lower() == "help":
                 message = "type an app name to open it, or start typing to filter the list below."
             else:
-                app_id = resolve_launch(query, APPS)
+                app_id = resolve_launch(lookup, APPS)
 
                 if app_id:
                     return redirect(f"/apps/{app_id}/")
