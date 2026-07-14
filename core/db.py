@@ -99,6 +99,34 @@ def init():
 
         );
 
+        CREATE TABLE IF NOT EXISTS file_locks (
+
+            workspace_id INTEGER NOT NULL,
+
+            path TEXT NOT NULL,
+
+            user_id INTEGER NOT NULL,
+
+            acquired_at REAL NOT NULL,
+
+            PRIMARY KEY (workspace_id, path)
+
+        );
+
+        CREATE TABLE IF NOT EXISTS workspace_sync_state (
+
+            workspace_id INTEGER PRIMARY KEY,
+
+            status TEXT NOT NULL DEFAULT 'clean',
+
+            conflict_files TEXT NOT NULL DEFAULT '',
+
+            remote_sha TEXT NOT NULL DEFAULT '',
+
+            version INTEGER NOT NULL DEFAULT 0
+
+        );
+
         """)
 
         columns = {row["name"] for row in con.execute("PRAGMA table_info(users)")}

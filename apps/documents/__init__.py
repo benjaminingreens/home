@@ -11,3 +11,6 @@ bp = Blueprint(
 )
 
 from . import routes
+
+HELP_INTRO = routes.DOCS_HELP_INTRO
+COMMANDS = routes.DOCS_HELP

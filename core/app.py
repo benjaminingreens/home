@@ -47,6 +47,16 @@ app.jinja_env.filters["colorize_meta"] = colorize_meta
 
 EXEMPT_PATHS = ("/login", "/logout", "/register", "/setup")
 
+HOME_HELP_INTRO = (
+    "home is where every app lives. type an app's name to jump straight "
+    "to it, or start typing to filter the list below."
+)
+
+HOME_HELP = [
+    ("<app name>", "open that app"),
+    ("/help", "this message"),
+]
+
 
 @app.before_request
 def enforce_setup():
@@ -152,6 +162,7 @@ def index():
 
     query = ""
     message = ""
+    help_commands = help_intro = None
 
     if request.method == "POST":
         query = request.form.get("query", "").strip()
@@ -164,7 +175,8 @@ def index():
             lookup = query.lstrip("/")
 
             if lookup.lower() == "help":
-                message = "type an app name to open it, or start typing to filter the list below."
+                help_commands = HOME_HELP
+                help_intro = HOME_HELP_INTRO
             else:
                 app_id = resolve_launch(lookup, APPS)
 
@@ -180,9 +192,11 @@ def index():
         query=query,
         records=[],
         message=message,
+        help_commands=help_commands,
+        help_intro=help_intro,
         user=user,
         app_label="home",
-        placeholder="type an app name, or 'help'...",
+        placeholder="type /help for info",
         apps=APPS,
     )
 

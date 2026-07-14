@@ -1,0 +1,48 @@
+{% extends "app.html" %}
+
+{% block body %}
+
+<div id="conflicts">
+
+<h1>sync conflict</h1>
+
+<p class="muted">someone else's changes couldn't be merged automatically. pick which version to keep for each file below, then resolve - you can always open the file afterward and edit it further.</p>
+
+{% if stale %}
+<div class="message error">this conflict was already resolved (probably by someone else) - showing the latest state.</div>
+{% endif %}
+
+<form method="post" action="/apps/ark/conflicts">
+
+<input type="hidden" name="workspace" value="{{ workspace_id }}">
+<input type="hidden" name="version" value="{{ version }}">
+
+{% for f in files %}
+
+<div class="conflict-file">
+
+<div class="conflict-path">{{ f.path }}</div>
+
+<label class="conflict-choice">
+<input type="radio" name="choice::{{ f.path }}" value="mine" checked>
+keep mine
+</label>
+<pre class="conflict-content">{{ f.mine }}</pre>
+
+<label class="conflict-choice">
+<input type="radio" name="choice::{{ f.path }}" value="theirs">
+keep theirs
+</label>
+<pre class="conflict-content">{{ f.theirs }}</pre>
+
+</div>
+
+{% endfor %}
+
+<button type="submit" class="conflict-resolve">resolve</button>
+
+</form>
+
+</div>
+
+{% endblock %}

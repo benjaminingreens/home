@@ -4,11 +4,15 @@
 
 <div id="editorpane">
 
+{% if conflict %}
+<div class="message error"><a href="/apps/ark/conflicts?workspace={{ workspace_id }}">sync conflict in this workspace - tap to resolve</a></div>
+{% endif %}
+
 <div id="editorbar">
 
-<button type="button" id="toggleEdit" class="reading">reading</button>:
+<button type="button" id="toggleEdit" class="reading{% if locked_by %} locked{% endif %}">{% if locked_by %}locked{% else %}reading{% endif %}</button>:
 <button type="button" id="filenameBtn" class="filename-btn" onclick="openMenu('app')">{{ file_path }}</button>
-<span id="saveStatus"></span>
+<span id="saveStatus">{% if locked_by %}being edited by {{ locked_by | lower }}{% endif %}</span>
 
 </div>
 
@@ -92,6 +96,9 @@
 <script>
 
 const HIGHLIGHT_LINE = {{ highlight_line if highlight_line is not none else -1 }};
+const WORKSPACE_ID = {{ workspace_id | tojson }};
+const FILE_PATH = {{ file_path | tojson }};
+let lockedBy = {{ locked_by | tojson }};
 
 const toggleEdit = document.getElementById("toggleEdit");
 const fileread = document.getElementById("fileread");
@@ -296,7 +303,11 @@ function save() {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams(new FormData(form)),
     }).then(res => {
-        if (!res.ok) throw new Error("save failed");
+        if (!res.ok) {
+            return res.json().catch(() => ({})).then(data => {
+                throw new Error(data.error || "save failed");
+            });
+        }
 
         const lines = textarea.value.split("\n");
         fileread.innerHTML = lines
@@ -304,14 +315,46 @@ function save() {
             .join("\n");
 
         showSaveStatus("saved", false);
-    }).catch(() => {
-        showSaveStatus("save failed", true);
+    }).catch(err => {
+        showSaveStatus(err.message || "save failed", true);
     });
 }
 
 function scheduleAutosave() {
     clearTimeout(autosaveTimer);
     autosaveTimer = setTimeout(() => { if (editing) save(); }, 1200);
+}
+
+function acquireLock() {
+    return fetch("/apps/ark/lock", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ workspace: WORKSPACE_ID, path: FILE_PATH }),
+    }).then(res => {
+        if (res.ok) return true;
+
+        return res.json().then(data => {
+            lockedBy = data.holder || "someone";
+            toggleEdit.textContent = "locked";
+            toggleEdit.className = "reading locked";
+            showSaveStatus("being edited by " + lockedBy.toLowerCase(), true);
+            return false;
+        });
+    }).catch(() => true); // fail open on network blips - don't block editing over connectivity
+}
+
+function releaseLock() {
+    navigator.sendBeacon(
+        "/apps/ark/unlock",
+        new URLSearchParams({ workspace: WORKSPACE_ID, path: FILE_PATH }),
+    );
+}
+
+function exitWriting() {
+    return save().then(() => {
+        releaseLock();
+        setEditing(false);
+    });
 }
 
 function lineBounds(pos) {
@@ -777,12 +820,17 @@ function handleNormalKey(e) {
 toggleEdit.addEventListener("click", () => {
     if (helpOpen) return;
 
+    if (lockedBy) {
+        showSaveStatus("being edited by " + lockedBy.toLowerCase(), true);
+        return;
+    }
+
     if (editing) {
         // Was silently discarding unsaved changes before - turning
         // writing back to reading now saves first, same as Escape.
-        save().then(() => setEditing(false));
+        exitWriting();
     } else {
-        setEditing(true);
+        acquireLock().then(ok => { if (ok) setEditing(true); });
     }
 });
 
@@ -801,6 +849,7 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("pagehide", () => {
     if (editing) {
         navigator.sendBeacon(form.action, new URLSearchParams(new FormData(form)));
+        releaseLock();
     }
 });
 
@@ -855,7 +904,7 @@ document.addEventListener("keydown", e => {
 
         if (editing) {
             e.preventDefault();
-            save().then(() => setEditing(false));
+            exitWriting();
         }
 
     }

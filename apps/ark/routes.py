@@ -5,9 +5,11 @@ from flask import render_template, request, redirect, abort
 from core.auth import current_user
 from core import workspaces as core_workspaces
 from core import groups as core_groups
+from core import locks as core_locks
+from core import sync_state
 
 from . import bp, NAME
-from .runner import install, run, add, is_git_linked, sync
+from .runner import install, run, add, is_git_linked, auto_sync, theirs_content, resolve_conflict
 from .parser import highlight_meta
 
 
@@ -108,6 +110,12 @@ def create_new_file(workspace, relpath):
     return target
 
 
+ARK_HELP_INTRO = (
+    "ark is your personal notes and task repository. jot down notes, "
+    "todos, and events as plain text - they're kept organized and synced "
+    "automatically."
+)
+
 ARK_HELP = [
     ("note: <text>", "save a quick note"),
     ("todo: <text>", "save a task"),
@@ -115,23 +123,30 @@ ARK_HELP = [
     ("tidy", "sort inbox into note/todo/evnt (dry run - shows what would move)"),
     ("/tidy", "same, but actually applies the changes"),
     ("/new <file>", "create a file"),
-    ("/sync", "push and pull this workspace"),
     ("/home", "go to the home screen"),
     ("/help", "this message"),
 ]
 
+CONFLICT_MESSAGE = "workspace has a sync conflict - resolve it first"
 
-def process(workspace, query):
+
+def process(workspace, workspace_id, query):
     """Returns (added, records, message, help_commands, help_more_hint,
     help_extra) - the last three are None outside the help/help-more
     paths, which render.html renders via the shared _help.html partial
     instead of stuffing curated text into the generic `message` string.
 
-    A leading "/" marks a HOME system command (sync, help, tidy --apply);
+    A leading "/" marks a HOME system command (help, tidy --apply);
     anything else is handed straight to Ark's own query engine untouched,
     including a bare "tidy" (real Ark CLI dry-run behavior) - this is the
     boundary that keeps HOME's shortcuts from colliding with Ark's own
-    command/query namespace."""
+    command/query namespace.
+
+    Syncing itself isn't a command any more - it happens automatically
+    (see auto_sync, called by the route around every request) - but
+    mutating commands here refuse to run while the workspace is flagged
+    conflicted, since writing more local changes on top of an unresolved
+    conflict only makes the resolution screen harder to reason about."""
 
     query = query.strip()
 
@@ -141,10 +156,6 @@ def process(workspace, query):
     if query.startswith("/"):
         command = query[1:].strip().lower()
 
-        if command == "sync":
-            _, message = sync(workspace)
-            return False, [], message, None, None, None
-
         if command == "help":
             return False, [], "", ARK_HELP, "type '/help more' to see every ark command", None
 
@@ -153,13 +164,21 @@ def process(workspace, query):
             return False, [], "", ARK_HELP, None, ark_help
 
         if command == "tidy":
+            if sync_state.is_conflicted(workspace_id):
+                return False, [], CONFLICT_MESSAGE, None, None, None
+
             _, stdout, error = run(workspace, "tidy --apply")
+            auto_sync(workspace, workspace_id)
             return False, [], error or stdout or "nothing to tidy", None, None, None
 
         return False, [], f"unknown command: /{command}", None, None, None
 
     if query.startswith(("note:", "todo:", "evnt:")):
+        if sync_state.is_conflicted(workspace_id):
+            return False, [], CONFLICT_MESSAGE, None, None, None
+
         add(workspace, query)
+        auto_sync(workspace, workspace_id)
         return True, [], "added", None, None, None
 
     records, stdout, error = run(workspace, query)
@@ -189,6 +208,13 @@ def home():
     if not file_path and not workspace_ready(workspace):
         return redirect("/apps/ark/workspace")
 
+    # Opportunistic pull-and-push on every visit - pulls whatever anyone
+    # else has pushed since, and pushes anything committed locally (e.g.
+    # by a prior save/add/tidy) that hasn't gone out yet. Best-effort: a
+    # no-op if unlinked, offline, or already flagged conflicted.
+    auto_sync(workspace, record["id"])
+    conflict = sync_state.is_conflicted(record["id"])
+
     if file_path:
         target = safe_file(workspace, file_path)
 
@@ -207,6 +233,9 @@ def home():
                     highlight_line = i
                     break
 
+        lock_user_id, lock_username = core_locks.holder(record["id"], file_path)
+        locked_by = lock_username if lock_user_id and lock_user_id != user["id"] else None
+
         return render_template(
             "file.html",
             page_class="editor",
@@ -214,6 +243,8 @@ def home():
             file_content=file_content,
             file_lines=[highlight_meta(l) for l in file_lines],
             highlight_line=highlight_line,
+            locked_by=locked_by,
+            conflict=conflict,
             user=user,
             app_label=request.args.get("app", NAME),
             app_home=request.args.get("home", "/apps/ark/"),
@@ -238,18 +269,23 @@ def home():
                     return redirect("/")
 
                 if cmd_lower.startswith("new "):
-                    relpath = new_file_path(command[4:])
+                    if conflict:
+                        message = CONFLICT_MESSAGE
+                    else:
+                        relpath = new_file_path(command[4:])
 
-                    if relpath:
-                        create_new_file(workspace, relpath)
-                        return redirect(f"/apps/ark/?file={relpath}")
+                        if relpath:
+                            create_new_file(workspace, relpath)
+                            auto_sync(workspace, record["id"])
+                            return redirect(f"/apps/ark/?file={relpath}")
 
-                    return redirect("/apps/ark/")
+                        return redirect("/apps/ark/")
 
-            added, records, message, help_commands, help_more_hint, help_extra = process(workspace, query)
+            if not message:
+                added, records, message, help_commands, help_more_hint, help_extra = process(workspace, record["id"], query)
 
-            if added:
-                return redirect("/apps/ark/?added=1")
+                if added:
+                    return redirect("/apps/ark/?added=1")
 
     page_class = "results" if records else ""
 
@@ -262,6 +298,8 @@ def home():
         help_commands=help_commands,
         help_more_hint=help_more_hint,
         help_extra=help_extra,
+        help_intro=(ARK_HELP_INTRO if help_commands else None),
+        conflict=conflict,
         user=user,
         app_label=NAME,
         app_home="/apps/ark/",
@@ -374,10 +412,115 @@ def save():
     relpath = request.form.get("path", "note/inbox.txt")
     content = request.form.get("content", "")
 
+    if sync_state.is_conflicted(record["id"]):
+        # Don't write into a workspace mid-resolution - the typed content
+        # is still safe in the browser's textarea either way (autosave
+        # just retries later), this only refuses to persist it yet.
+        return {"ok": False, "error": CONFLICT_MESSAGE}, 409
+
+    # A save implies an active edit session - (re)claim the lock as a
+    # heartbeat so it doesn't go stale mid-edit. Doesn't block the save
+    # itself on lock ownership: this is a small trusted-group tool, not an
+    # adversarial one, and refusing to persist someone's typed text because
+    # of a lock race would be worse than the rare double-edit it prevents.
+    core_locks.acquire(record["id"], relpath, user["id"])
+
     target = safe_file(workspace, relpath)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content, encoding="utf-8")
 
+    auto_sync(workspace, record["id"])
+
     qs = urlencode({"file": relpath, **({"workspace": workspace_id} if workspace_id else {})})
 
     return redirect(f"/apps/ark/?{qs}")
+
+
+@bp.post("/lock")
+def lock_file():
+    user = current_user()
+
+    if not user:
+        return {"ok": False}, 401
+
+    workspace_id = request.form.get("workspace", type=int)
+    path = request.form.get("path", "")
+
+    if not workspace_id or not path:
+        return {"ok": False}, 400
+
+    ok, holder_name = core_locks.acquire(workspace_id, path, user["id"])
+
+    if ok:
+        return {"ok": True}
+
+    return {"ok": False, "holder": holder_name}, 409
+
+
+@bp.post("/unlock")
+def unlock_file():
+    user = current_user()
+
+    if not user:
+        return {"ok": False}, 401
+
+    workspace_id = request.form.get("workspace", type=int)
+    path = request.form.get("path", "")
+
+    if workspace_id and path:
+        core_locks.release(workspace_id, path, user["id"])
+
+    return {"ok": True}
+
+
+@bp.route("/conflicts", methods=["GET", "POST"])
+def conflicts():
+    workspace_id = request.values.get("workspace")
+    user, workspace, record = ark_workspace(workspace_id)
+
+    if not user:
+        return redirect("/login")
+
+    state = sync_state.get(record["id"])
+
+    if state["status"] != "conflict":
+        return redirect("/apps/ark/")
+
+    if request.method == "POST":
+
+        if request.form.get("version", type=int) != state["version"]:
+            return redirect(f"/apps/ark/conflicts?workspace={record['id']}&stale=1")
+
+        choices = {
+            path: request.form.get(f"choice::{path}", "mine")
+            for path in state["conflict_files"]
+        }
+
+        resolve_conflict(workspace, choices, state["remote_sha"])
+
+        if not sync_state.mark_clean(record["id"], expected_version=state["version"]):
+            return redirect(f"/apps/ark/conflicts?workspace={record['id']}&stale=1")
+
+        auto_sync(workspace, record["id"])  # picks up anything that landed since
+
+        return redirect("/apps/ark/")
+
+    files = []
+
+    for path in state["conflict_files"]:
+        target = workspace / path
+        mine = target.read_text(encoding="utf-8", errors="replace") if target.exists() else "[deleted locally]"
+        theirs = theirs_content(workspace, path, state["remote_sha"])
+        files.append({"path": path, "mine": mine, "theirs": theirs if theirs is not None else "[deleted on remote]"})
+
+    return render_template(
+        "conflicts.html",
+        page_class="",
+        files=files,
+        version=state["version"],
+        stale=request.args.get("stale") == "1",
+        user=user,
+        app_label=NAME,
+        app_home="/apps/ark/",
+        workspace_id=record["id"],
+    )

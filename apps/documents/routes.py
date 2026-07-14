@@ -4,9 +4,16 @@ from core.auth import current_user
 from core import workspaces as core_workspaces
 from core import groups as core_groups
 from apps.ark.routes import new_file_path, create_new_file, resolve_active_workspace
+from apps.ark.runner import auto_sync
 
 from . import bp, NAME
 from .tags import list_tags, notes_by_tags
+
+DOCS_HELP_INTRO = (
+    "documents lets you browse notes from all your ark workspaces by tag, "
+    "so you don't have to remember which workspace something's filed "
+    "under."
+)
 
 DOCS_HELP = [
     ("<tag>", "filter notes by tag"),
@@ -36,6 +43,14 @@ def home():
         return redirect("/login")
 
     workspaces = visible_workspaces(user)
+
+    # Documents reads straight off disk for every visible workspace, so it
+    # needs the same opportunistic pull Ark's own pages trigger - otherwise
+    # someone who only ever browses via Documents could be looking at
+    # stale content. Same auto_sync as Ark, just called from here too.
+    for ws in workspaces:
+        auto_sync(ws["path"], ws["id"])
+
     selected = [t for t in request.args.get("tags", "").split(",") if t]
     all_tags = list_tags(workspaces)
 
@@ -57,6 +72,7 @@ def home():
                     notes=notes_by_tags(workspaces, selected),
                     show_origin=len(workspaces) > 1,
                     help_commands=DOCS_HELP,
+                    help_intro=DOCS_HELP_INTRO,
                     help_more_hint="use the workspaces menu (tap the app name above) to choose which workspaces' notes show up here.",
                     workspace_toggles=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
                 )

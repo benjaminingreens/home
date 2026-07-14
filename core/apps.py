@@ -26,6 +26,8 @@ def load_apps(app):
             "id": directory.name,
             "name": getattr(module, "NAME", directory.name.capitalize()),
             "description": getattr(module, "DESCRIPTION", ""),
+            "help_intro": getattr(module, "HELP_INTRO", ""),
+            "commands": getattr(module, "COMMANDS", []),
         })
 
     REGISTRY[:] = loaded

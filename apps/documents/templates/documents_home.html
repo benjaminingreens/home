@@ -13,7 +13,7 @@
 <textarea
     id="query"
     name="query"
-    placeholder="type help to see what you can do..."
+    placeholder="type /help for info"
     spellcheck="false"
     autocomplete="off"
     autofocus></textarea>
@@ -254,9 +254,9 @@ query.addEventListener("keydown", e => {
     if (e.key !== "Enter")
         return;
 
+    // Enter submits exactly what was typed - the ghost text is only a
+    // preview. Tab / ArrowRight (above) are the only way to accept it.
     e.preventDefault();
-
-    if (ghostTag) acceptGhost();
 
     form.submit();
 

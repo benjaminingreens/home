@@ -11,3 +11,14 @@ bp = Blueprint(
 )
 
 from . import routes
+
+HELP_INTRO = (
+    "settings covers your account, appearance, and groups - and, if "
+    "you're an admin, server and user management too."
+)
+
+COMMANDS = [
+    ("account", "change your username or password"),
+    ("appearance", "set your accent and background colour"),
+    ("groups", "create, join, and manage groups and workspaces"),
+]

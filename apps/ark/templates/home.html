@@ -2,6 +2,10 @@
 
 {% block body %}
 
+{% if conflict %}
+<div class="message error"><a href="/apps/ark/conflicts?workspace={{ active_workspace_id }}">sync conflict in this workspace - tap to resolve</a></div>
+{% endif %}
+
 {% include "_terminal.html" %}
 
 {% endblock %}

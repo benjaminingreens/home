@@ -182,6 +182,7 @@ button {
 .topbar {
     display: flex;
     align-items: baseline;
+    justify-content: space-between;
     gap: 12px;
     margin-bottom: var(--section-gap);
     font-size: 2rem;
@@ -669,8 +670,22 @@ body.editing #field {
     white-space: pre-wrap;
 }
 
+.message.error {
+    color: #ff9999;
+}
+
+.message.error a {
+    color: inherit;
+}
+
 .help-card {
     margin: var(--section-gap) 0 0;
+}
+
+.help-intro {
+    color: var(--fg-muted, #888);
+    line-height: 1.5;
+    margin: 0 0 16px;
 }
 
 .help-item {
@@ -679,11 +694,6 @@ body.editing #field {
     gap: 6px 16px;
     padding: 10px 0;
     border-bottom: 1px solid #222;
-    cursor: pointer;
-}
-
-.help-item:hover {
-    background: #111;
 }
 
 .help-cmd {
@@ -828,6 +838,11 @@ body.chat .topbar {
     color: #ff8f8f;
 }
 
+#toggleEdit.locked {
+    color: var(--fg-faint, #666);
+    cursor: not-allowed;
+}
+
 .filename-btn {
     color: var(--fg-muted, #ccc);
 }
@@ -907,6 +922,58 @@ body.chat .topbar {
 
 #editorpane {
     padding-bottom: 2.5em;
+}
+
+/* =======================================================
+   Conflict resolution
+   ======================================================= */
+
+#conflicts h1 {
+    font-size: 1.6rem;
+    font-style: italic;
+    margin: 0 0 12px;
+}
+
+.conflict-file {
+    margin: var(--section-gap) 0 0;
+    padding-bottom: var(--section-gap);
+    border-bottom: 1px solid var(--border-color, #222);
+}
+
+.conflict-path {
+    font-weight: bold;
+    margin-bottom: 12px;
+}
+
+.conflict-choice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0 6px;
+    cursor: pointer;
+}
+
+.conflict-content {
+    max-height: 220px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: rgba(127, 127, 127, 0.08);
+    border: 1px solid var(--border-color, #222);
+    border-radius: 4px;
+    padding: 10px;
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--fg-muted, #aaa);
+}
+
+.conflict-resolve {
+    margin-top: var(--section-gap);
+    padding: 10px 24px;
+    background: none;
+    border: 1px solid var(--fg-color, #fff);
+    color: var(--fg-color, #fff);
+    font: inherit;
 }
 
 /* =======================================================

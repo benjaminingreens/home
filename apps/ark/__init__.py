@@ -13,3 +13,6 @@ bp = Blueprint(
 
 from . import routes
 from .runner import install
+
+HELP_INTRO = routes.ARK_HELP_INTRO
+COMMANDS = routes.ARK_HELP
