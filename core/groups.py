@@ -240,6 +240,20 @@ def get_or_create_default_workspace(user_id, app):
     return create_workspace_record(group["id"], app, "default", user_id)
 
 
+def get_or_create_group_default_workspace(group_id, app, creator_id):
+    """First workspace in this group for `app`, creating a 'default' one
+    if none exist yet. Used when switching the topbar's group dropdown -
+    unlike get_or_create_default_workspace, group_id is explicit rather
+    than derived from the user's personal group."""
+
+    existing = list_group_workspaces(group_id, app)
+
+    if existing:
+        return existing[0]
+
+    return create_workspace_record(group_id, app, "default", creator_id)
+
+
 def list_visible_workspaces(user_id, app):
     with connect() as con:
         return con.execute(

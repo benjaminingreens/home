@@ -1,0 +1,41 @@
+{% extends "app.html" %}
+
+{% block body %}
+
+<h1>settings</h1>
+
+{% include "_nav.html" %}
+
+{% if message %}
+<p class="notice">{{ message }}</p>
+{% endif %}
+
+{% if error %}
+<p class="error">{{ error }}</p>
+{% endif %}
+
+<h2>accent color</h2>
+
+<p class="muted">colors the group name in the topbar (e.g. "{{ user.username | lower }}'s").</p>
+
+<form method="post" class="reset-form" style="flex-wrap: wrap; gap: 12px; margin: 16px 0;">
+{% for c in palette %}
+<button type="submit" name="accent_color" value="{{ c }}"
+    style="width: 32px; height: 32px; padding: 0; border-radius: 50%; cursor: pointer;
+    background: {{ c }}; border: 2px solid {{ '#fff' if c == user.accent_color else 'transparent' }};"
+    aria-label="{{ c }}"></button>
+{% endfor %}
+</form>
+
+<form method="post" class="authform">
+
+<label>
+<span>custom hex color</span>
+<input name="accent_color" placeholder="#7fa8e2" value="{{ user.accent_color }}" autocomplete="off">
+</label>
+
+<button type="submit">save</button>
+
+</form>
+
+{% endblock %}

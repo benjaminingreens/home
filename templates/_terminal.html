@@ -9,7 +9,7 @@
 <textarea
     id="query"
     name="query"
-    placeholder="Search apps or run a command&hellip;"
+    placeholder="{{ placeholder or "type help to see what you can do..." }}"
     spellcheck="false"
     autocomplete="off"
     autofocus>{{ query }}</textarea>
@@ -25,6 +25,28 @@
 {% if message %}
 
 <div class="message">{{ message }}</div>
+
+{% endif %}
+
+{% if apps %}
+
+<div id="applist">
+
+{% for a in apps %}
+
+<a class="record" href="/apps/{{ a.id }}/" data-id="{{ a.id | lower }}" data-name="{{ a.name | lower }}">
+
+<span class="record-text">{{ a.name | lower }}</span>
+
+<span class="record-dots"></span>
+
+<span class="record-meta">{{ a.description }}</span>
+
+</a>
+
+{% endfor %}
+
+</div>
 
 {% endif %}
 
@@ -75,6 +97,24 @@ const mCursor = document.getElementById("mCursor");
 const mAfter = document.getElementById("mAfter");
 
 const mGhost = document.getElementById("mGhost");
+
+const appEls = document.querySelectorAll("#applist a");
+
+function filterApps(token) {
+
+    token = token.toLowerCase();
+
+    appEls.forEach(el => {
+
+        const matches = !token
+            || el.dataset.id.startsWith(token)
+            || el.dataset.name.startsWith(token);
+
+        el.classList.toggle("hidden", !matches);
+
+    });
+
+}
 
 query.focus();
 
@@ -207,6 +247,8 @@ function update() {
     }
 
     renderMirror();
+
+    filterApps(text.includes(" ") || text.includes("\n") ? "" : text);
 
 }
 

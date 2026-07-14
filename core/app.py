@@ -17,6 +17,7 @@ from flask import (
 from .storage import init
 from .auth import login, logout
 from .users import has_any_users, create_first_admin
+from . import groups as core_groups
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -71,6 +72,46 @@ def enforce_password_change():
         return redirect("/apps/settings/")
 
 
+@app.context_processor
+def inject_topbar_context():
+    user = current_user()
+
+    if not user:
+        return {}
+
+    # Deferred import: apps.ark.routes imports from core.groups/core.workspaces,
+    # and this module is imported (via load_apps) before those blueprints
+    # exist, so importing it at module load time here would be premature.
+    from apps.ark.routes import resolve_active_workspace
+
+    active = resolve_active_workspace(user)
+
+    return {
+        "current_user_ctx": user,
+        "current_group": {"id": active["group_id"], "name": active["group_name"]},
+        "user_groups": core_groups.list_user_groups(user["id"]),
+        "nav_apps": APPS,
+    }
+
+
+@app.post("/group")
+def switch_group():
+    user = current_user()
+
+    if not user:
+        return redirect("/login")
+
+    group_id = int(request.form.get("group_id", 0))
+
+    if not core_groups.require_active_member(user["id"], group_id):
+        abort(403)
+
+    workspace = core_groups.get_or_create_group_default_workspace(group_id, "ark", user["id"])
+    core_groups.set_active_workspace(user["id"], workspace["id"])
+
+    return redirect(request.referrer or "/")
+
+
 @app.get("/apps")
 def apps():
 
@@ -105,12 +146,15 @@ def index():
 
         if query:
 
-            app_id = resolve_launch(query, APPS)
+            if query.lower() == "help":
+                message = "type an app name to open it, or start typing to filter the list below."
+            else:
+                app_id = resolve_launch(query, APPS)
 
-            if app_id:
-                return redirect(f"/apps/{app_id}/")
+                if app_id:
+                    return redirect(f"/apps/{app_id}/")
 
-            message = "no such app"
+                message = "no such app"
 
     return render_template(
         "index.html",
@@ -121,6 +165,7 @@ def index():
         message=message,
         user=user,
         app_label="home",
+        placeholder="type an app name, or 'help'...",
         apps=APPS,
     )
 

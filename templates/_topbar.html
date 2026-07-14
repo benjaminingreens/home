@@ -1,32 +1,83 @@
-<nav class="topbar">
+{% if current_user_ctx %}
 
-<a href="{{ app_home or '/' }}" class="topbar-app">{{ (app_label or "home") | lower }}</a>
+<nav class="topbar">
+<button type="button" class="topbar-group" style="color: {{ current_user_ctx.accent_color }}"
+        onclick="openMenu('group')">{{ current_group.name | lower }}'s</button>
+<button type="button" class="topbar-appname" onclick="openMenu('app')">{{ (app_label or "home") | lower }}</button>
+</nav>
+
+<div id="menu-group" class="menu-overlay hidden">
+
+<div class="menu-whoami">logged in as {{ current_user_ctx.username | lower }}</div>
+
+{% for g in user_groups %}
+<form method="post" action="/group" class="menu-form">
+<input type="hidden" name="group_id" value="{{ g.id }}">
+<button type="submit" class="menu-item {{ 'active' if g.id == current_group.id }}">{{ g.name | lower }}</button>
+</form>
+{% endfor %}
+
+<a href="/apps/settings/groups" class="menu-item muted">manage groups</a>
+<a href="/logout" class="menu-item menu-logout">logout</a>
+
+</div>
+
+<div id="menu-app" class="menu-overlay hidden">
+
+<div class="menu-whoami">logged in as {{ current_user_ctx.username | lower }}</div>
+
+<a href="/" class="menu-item">go home</a>
 
 {% if workspace_options is defined %}
-
-<form method="post" action="/apps/ark/workspaces" class="topbar-form">
-<select name="workspace_id" class="topbar-select" onchange="this.form.submit()">
+<div class="menu-section">select workspace</div>
 {% for w in workspace_options %}
-<option value="{{ w.id }}" {% if w.id == active_workspace_id %}selected{% endif %}>{{ w.group_name | lower }} / {{ w.name }}</option>
+<form method="post" action="/apps/ark/workspaces" class="menu-form">
+<input type="hidden" name="workspace_id" value="{{ w.id }}">
+<button type="submit" class="menu-item menu-sub {{ 'active' if w.id == active_workspace_id }}">{{ w.name | lower }}</button>
+</form>
 {% endfor %}
-</select>
+{% if git_linked is defined and not git_linked %}
+<a href="/apps/ark/workspace" class="menu-item menu-sub">link this workspace</a>
+{% endif %}
+{% endif %}
+
+{% if workspace_toggles is defined %}
+<div class="menu-section">workspaces</div>
+{% for w in workspace_toggles %}
+<form method="post" action="/apps/documents/visibility" class="menu-form">
+<input type="hidden" name="workspace_id" value="{{ w.id }}">
+<input type="hidden" name="visible" value="{{ 0 if w.visible else 1 }}">
+<button type="submit" class="menu-item menu-sub">{{ "☑" if w.visible else "☐" }} {{ w.name | lower }}</button>
 </form>
-
-{% if git_linked %}
-<form method="post" action="/apps/ark/sync" class="topbar-form">
-<button type="submit" class="topbar-btn">sync</button>
-</form>
-{% elif git_linked is defined %}
-<a href="/apps/ark/workspace" class="topbar-workspace">link</a>
+{% endfor %}
 {% endif %}
 
-{% elif workspace_label %}
-<span class="topbar-workspace">{{ workspace_label | lower }}</span>
-{% endif %}
+<div class="menu-section">apps</div>
+{% for a in nav_apps %}
+<a href="/apps/{{ a.id }}/" class="menu-item {{ 'active' if a.id == app_id }}">{{ a.name | lower }}</a>
+{% endfor %}
 
-{% if user %}
-<a href="/" class="topbar-user">{{ user["username"] | lower }}</a>
-<a href="/logout">logout</a>
-{% endif %}
+<a href="/logout" class="menu-item menu-logout">logout</a>
 
-</nav>
+</div>
+
+<script>
+function openMenu(name) {
+    document.getElementById('menu-' + name).classList.remove('hidden');
+}
+function closeMenus() {
+    document.querySelectorAll('.menu-overlay').forEach(function (el) {
+        el.classList.add('hidden');
+    });
+}
+document.querySelectorAll('.menu-overlay').forEach(function (el) {
+    el.addEventListener('click', function (e) {
+        if (e.target === el) closeMenus();
+    });
+});
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeMenus();
+});
+</script>
+
+{% endif %}

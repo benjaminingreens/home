@@ -113,6 +113,21 @@ def process(workspace, query):
     if not query:
         return False, [], ""
 
+    if query.lower() == "sync":
+        _, message = sync(workspace)
+        return False, [], message
+
+    if query.lower() == "help":
+        _, ark_help, _ = run(workspace, "help")
+        message = (
+            "home commands:\n"
+            "  new <file>   create a file\n"
+            "  sync         push/pull this workspace\n"
+            "  home         go to the home screen\n\n"
+            + ark_help
+        )
+        return False, [], message
+
     if query.startswith(("note:", "todo:", "evnt:")):
         add(workspace, query)
         return True, [], "added"
@@ -170,19 +185,14 @@ def home():
             highlight_line=highlight_line,
             user=user,
             app_label=request.args.get("app", NAME),
+            app_id=request.args.get("app", NAME).lower(),
             app_home=request.args.get("home", "/apps/ark/"),
             workspace_id=record["id"],
         )
 
     records = []
     query = ""
-
-    if request.args.get("sync_msg") is not None:
-        message = request.args.get("sync_msg", "")
-    elif request.args.get("added"):
-        message = "added"
-    else:
-        message = ""
+    message = "added" if request.args.get("added") else ""
 
     if request.method == "POST":
         query = request.form.get("query", "").strip()
@@ -216,10 +226,11 @@ def home():
         message=message,
         user=user,
         app_label=NAME,
+        app_id="ark",
         app_home="/apps/ark/",
         apps=[],
         git_linked=is_git_linked(workspace),
-        workspace_options=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
+        workspace_options=core_groups.list_group_workspaces(record["group_id"], "ark"),
         active_workspace_id=record["id"],
     )
 
@@ -304,29 +315,16 @@ def workspace_setup():
         "workspace.html",
         user=user,
         app_label=NAME,
+        app_id="ark",
         app_home="/apps/ark/",
         state=state,
         remote=remote,
         error=error,
         message=message,
         workspace_label=f"{record['group_name']} / {record['name']}",
-        workspace_options=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
+        workspace_options=core_groups.list_group_workspaces(record["group_id"], "ark"),
         active_workspace_id=record["id"],
     )
-
-
-@bp.post("/sync")
-def sync_route():
-    user, workspace, record = ark_workspace()
-
-    if not user:
-        return redirect("/login")
-
-    ok, sync_message = sync(workspace)
-
-    qs = urlencode({"sync_msg": sync_message, "sync_ok": int(ok)})
-
-    return redirect(f"/apps/ark/?{qs}")
 
 
 @bp.post("/save")

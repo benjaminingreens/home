@@ -114,3 +114,6 @@ def init():
 
         if "active_workspace_id" not in columns:
             con.execute("ALTER TABLE users ADD COLUMN active_workspace_id INTEGER")
+
+        if "accent_color" not in columns:
+            con.execute("ALTER TABLE users ADD COLUMN accent_color TEXT NOT NULL DEFAULT '#7fa8e2'")

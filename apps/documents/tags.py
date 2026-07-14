@@ -46,6 +46,12 @@ def scan_notes(workspaces):
     notes = []
 
     for ws in workspaces:
+        if not ws["path"].is_dir():
+            # A workspace can have a DB record (e.g. just switched into via
+            # the group dropdown) before anyone has set it up through Ark,
+            # so its directory may not exist on disk yet - nothing to scan.
+            continue
+
         records, _, _ = run(ws["path"], "note")
         notes.extend(_as_note(r, ws) for r in records)
         notes.extend(_root_txt_notes(ws))
@@ -70,6 +76,9 @@ def notes_by_tags(workspaces, tags):
     notes = []
 
     for ws in workspaces:
+        if not ws["path"].is_dir():
+            continue
+
         records, _, _ = run(ws["path"], query)
         notes.extend(_as_note(r, ws) for r in records)
 

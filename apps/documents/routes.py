@@ -36,6 +36,30 @@ def home():
     if request.method == "POST":
         raw_query = request.form.get("query", "").strip()
 
+        if raw_query.lower() == "help":
+            message = (
+                "home commands:\n"
+                "  <tag>        filter notes by tag\n"
+                "  new <file>   create a file\n"
+                "  help         this message\n\n"
+                "use the workspaces menu (tap the app name above) to choose\n"
+                "which workspaces' notes show up here."
+            )
+
+            return render_template(
+                "documents_home.html",
+                user=user,
+                app_label=NAME,
+                app_id="documents",
+                app_home="/apps/documents/",
+                selected=[],
+                available=[t for t in all_tags if t not in selected],
+                notes=notes_by_tags(workspaces, selected),
+                show_origin=len(workspaces) > 1,
+                message=message,
+                workspace_toggles=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
+            )
+
         if raw_query.lower().startswith("new "):
             relpath = new_file_path(raw_query[4:])
 
@@ -75,34 +99,16 @@ def home():
         for t in selected
     ]
 
-    all_workspaces = core_groups.list_all_workspaces_with_visibility(user["id"], "ark")
-
     return render_template(
         "documents_home.html",
         user=user,
         app_label=NAME,
+        app_id="documents",
         app_home="/apps/documents/",
         selected=selected_view,
         available=available,
         notes=notes,
         show_origin=len(workspaces) > 1,
-        visible_count=len(workspaces),
-        total_count=len(all_workspaces),
-    )
-
-
-@bp.route("/workspaces")
-def workspaces_list():
-    user = current_user()
-
-    if not user:
-        return redirect("/login")
-
-    return render_template(
-        "documents_workspaces.html",
-        user=user,
-        app_label=NAME,
-        app_home="/apps/documents/",
         workspace_toggles=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
     )
 
@@ -119,4 +125,4 @@ def toggle_visibility():
 
     core_groups.set_workspace_visibility(user["id"], workspace_id, visible)
 
-    return redirect("/apps/documents/workspaces")
+    return redirect("/apps/documents/")

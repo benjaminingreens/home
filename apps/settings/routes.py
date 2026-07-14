@@ -1,3 +1,4 @@
+import re
 import sqlite3
 
 from flask import render_template, request, redirect
@@ -10,6 +11,12 @@ from core import groups as core_groups
 from . import bp, NAME
 
 VALID_VISIBILITY = ("private", "server", "federated")
+
+ACCENT_PALETTE = (
+    "#7fa8e2", "#7fe28a", "#f2d94e", "#ff8f8f",
+    "#d98fff", "#ff8fd9", "#8fffe2", "#ffb347",
+)
+ACCENT_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
 @bp.route("/", methods=["GET", "POST"])
@@ -42,10 +49,45 @@ def account():
         "settings_account.html",
         user=user,
         app_label=NAME,
+        app_id="settings",
         app_home="/apps/settings/",
         section="account",
         message=message,
         error=error,
+    )
+
+
+@bp.route("/appearance", methods=["GET", "POST"])
+def appearance():
+    user = current_user()
+
+    if not user:
+        return redirect("/login")
+
+    message = ""
+    error = ""
+
+    if request.method == "POST":
+        color = request.form.get("accent_color", "").strip()
+
+        if color in ACCENT_PALETTE or ACCENT_COLOR_RE.match(color):
+            with connect() as con:
+                con.execute("UPDATE users SET accent_color=? WHERE id=?", (color, user["id"]))
+            message = "appearance updated"
+            user = current_user()
+        else:
+            error = "enter a valid color, e.g. #7fa8e2"
+
+    return render_template(
+        "settings_appearance.html",
+        user=user,
+        app_label=NAME,
+        app_id="settings",
+        app_home="/apps/settings/",
+        section="appearance",
+        message=message,
+        error=error,
+        palette=ACCENT_PALETTE,
     )
 
 
@@ -72,6 +114,7 @@ def visibility():
         "settings_visibility.html",
         user=user,
         app_label=NAME,
+        app_id="settings",
         app_home="/apps/settings/",
         section="visibility",
         message=message,
@@ -146,6 +189,7 @@ def groups_page():
         "settings_groups.html",
         user=user,
         app_label=NAME,
+        app_id="settings",
         app_home="/apps/settings/",
         section="groups",
         message=message,
@@ -187,6 +231,7 @@ def servers():
         "settings_servers.html",
         user=user,
         app_label=NAME,
+        app_id="settings",
         app_home="/apps/settings/",
         section="servers",
         message=message,
@@ -237,6 +282,7 @@ def accounts():
         "settings_accounts.html",
         user=user,
         app_label=NAME,
+        app_id="settings",
         app_home="/apps/settings/",
         section="accounts",
         message=message,

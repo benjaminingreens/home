@@ -13,7 +13,7 @@
 <textarea
     id="query"
     name="query"
-    placeholder="Type a tag, or &#39;new &lt;file&gt;&#39;&hellip;"
+    placeholder="type help to see what you can do..."
     spellcheck="false"
     autocomplete="off"
     autofocus></textarea>
@@ -26,10 +26,11 @@
 
 </div>
 
-<p class="muted" style="margin-bottom: var(--section-gap);">
-showing {{ visible_count }} of {{ total_count }} workspace{{ "s" if total_count != 1 }} &middot;
-<a href="/apps/documents/workspaces">change</a>
-</p>
+{% if message %}
+
+<div class="message">{{ message }}</div>
+
+{% endif %}
 
 {% if selected %}
 
