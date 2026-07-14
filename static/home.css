@@ -81,7 +81,7 @@ a:hover {
 
 .authform label span {
     display: block;
-    color: #888;
+    color: var(--fg-muted, #888);
     font-style: italic;
     margin-bottom: 8px;
 }
@@ -155,7 +155,7 @@ button,
 textarea,
 select {
     font: inherit;
-    background: #000;
+    background: var(--bg-color, #000);
     color: inherit;
 }
 
@@ -172,7 +172,7 @@ button {
 }
 
 .muted {
-    color: #777;
+    color: var(--fg-muted, #777);
 }
 
 /* =======================================================
@@ -238,14 +238,14 @@ body.editor .topbar {
 }
 
 .menu-whoami {
-    color: #666;
+    color: var(--fg-muted, #666);
     font-size: 1rem;
     font-style: normal;
     margin-bottom: 24px;
 }
 
 .menu-section {
-    color: #666;
+    color: var(--fg-muted, #666);
     font-size: 1rem;
     font-style: normal;
     margin-top: 20px;
@@ -278,19 +278,19 @@ body.editor .topbar {
 }
 
 .menu-item.muted {
-    color: #666;
+    color: var(--fg-muted, #666);
 }
 
 .menu-sub {
     padding-left: 20px;
     font-size: 1.2rem;
-    color: #aaa;
+    color: var(--fg-muted, #aaa);
 }
 
 .menu-logout {
     margin-top: auto;
     border-bottom: none;
-    color: #888;
+    color: var(--fg-muted, #888);
 }
 
 .menu-close {
@@ -346,7 +346,7 @@ body.editor .topbar {
 }
 
 .settings-nav a {
-    color: #666;
+    color: var(--fg-muted, #666);
     text-decoration: none;
 }
 
@@ -449,7 +449,7 @@ body.editing #field {
 }
 
 #query::placeholder {
-    color: #4a4a4a;
+    color: var(--fg-faint, #4a4a4a);
 }
 
 #mirror {
@@ -471,16 +471,16 @@ body.editing #field {
 
 #field.stale #mBefore,
 #field.stale #mAfter {
-    color: #4a4a4a;
+    color: var(--fg-faint, #4a4a4a);
 }
 
 #mGhost {
-    color: #4a4a4a;
+    color: var(--fg-faint, #4a4a4a);
 }
 
 #mCursor {
-    background: #d9d9d9;
-    color: #000;
+    background: var(--fg-color, #d9d9d9);
+    color: var(--bg-color, #000);
     border-radius: 1px;
 }
 
@@ -496,7 +496,7 @@ body.editing #field {
 
 #selected a {
     margin-right: 20px;
-    color: #ccc;
+    color: var(--fg-muted, #ccc);
 }
 
 #selected a:hover {
@@ -567,7 +567,7 @@ body.editing #field {
     overflow: hidden;
     white-space: nowrap;
     letter-spacing: .03em;
-    color: #3a3a3a;
+    color: var(--fg-faint, #3a3a3a);
     position: relative;
     top: .2em;
 }
@@ -582,7 +582,7 @@ body.editing #field {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: #555;
+    color: var(--fg-faint, #555);
     text-align: right;
 }
 
@@ -623,7 +623,7 @@ body.editing #field {
 
 .record-preview {
     margin-top: 4px;
-    color: #aaa;
+    color: var(--fg-muted, #aaa);
     overflow: hidden;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -640,7 +640,7 @@ body.editing #field {
 }
 
 .record-preview.faint {
-    color: #555;
+    color: var(--fg-faint, #555);
     font-style: italic;
 }
 
@@ -651,7 +651,7 @@ body.editing #field {
     gap: 8px;
     margin-top: 6px;
     font-size: 0.9rem;
-    color: #666;
+    color: var(--fg-muted, #666);
 }
 
 .record-tag {
@@ -659,13 +659,13 @@ body.editing #field {
 }
 
 .record-id {
-    color: #555;
+    color: var(--fg-faint, #555);
 }
 
 .message {
     margin: var(--section-gap) 0 0;
     font-style: italic;
-    color: #888;
+    color: var(--fg-muted, #888);
     white-space: pre-wrap;
 }
 
@@ -694,42 +694,52 @@ body.editing #field {
 }
 
 .help-desc {
-    color: #888;
+    color: var(--fg-muted, #888);
 }
 
 .help-extra {
     margin-top: 20px;
     padding-top: 16px;
     border-top: 1px solid #222;
-    color: #888;
+    color: var(--fg-muted, #888);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
 
 /* =======================================================
    Chat - flat black/white log, no bubbles, ported from the
-   user's legacy single-room chat design.
+   user's legacy single-room chat design. Fixed to the viewport height
+   (like the legacy design) - only the message log scrolls, the input
+   stays pinned at the bottom of the screen.
    ======================================================= */
 
-.chat-switcher {
-    margin-bottom: var(--section-gap);
+body.chat {
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
-.chat-switcher select {
-    border: none;
-    background: none;
-    color: #666;
-    font: inherit;
-    font-size: 1rem;
-    cursor: pointer;
+body.chat .topbar {
+    flex: 0 0 auto;
 }
 
-.chat-switcher select:hover {
-    color: var(--fg-color, #fff);
+#chat-page {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 #chat-messages {
-    margin-bottom: var(--section-gap);
+    flex: 1 1 auto;
+    overflow-y: auto;
+    scrollbar-width: none;
+    padding-bottom: 20px;
+}
+
+#chat-messages::-webkit-scrollbar {
+    display: none;
 }
 
 .chat-message {
@@ -746,7 +756,7 @@ body.editing #field {
 }
 
 .chat-time {
-    color: #666;
+    color: var(--fg-muted, #666);
     margin-left: 0.7em;
 }
 
@@ -754,6 +764,12 @@ body.editing #field {
     color: var(--fg-color, #fff);
     white-space: pre-wrap;
     overflow-wrap: break-word;
+}
+
+#chat-form {
+    flex: 0 0 auto;
+    border-top: 1px solid var(--border-color, #222);
+    padding: 12px 0;
 }
 
 #chat-input {
@@ -788,7 +804,7 @@ body.editing #field {
 
 #saveStatus {
     font-style: italic;
-    color: #888;
+    color: var(--fg-muted, #888);
     margin-left: 8px;
 }
 
@@ -813,7 +829,7 @@ body.editing #field {
 }
 
 .filename-btn {
-    color: #ccc;
+    color: var(--fg-muted, #ccc);
 }
 
 .linkbtn {
@@ -831,15 +847,15 @@ body.editing #field {
     word-break: break-word;
 }
 
-.line-meta {
-    color: #7fa8e2;
-}
-
 .line.hl {
+    /* Inverted from the current theme (fg becomes the highlight
+       background, bg becomes the text) instead of a fixed yellow -
+       always readable and never clashes with whatever background the
+       user picked. */
     display: inline-block;
     width: 100%;
-    background: #f2d94e;
-    color: #000;
+    background: var(--fg-color, #f2d94e);
+    color: var(--bg-color, #000);
 }
 
 #taWrap {
@@ -907,12 +923,16 @@ body.editing #field {
     :root {
         --input-font-size: 1.6rem;
         --row-font-size: 1.25rem;
+        /* Every gap that uses --section-gap (topbar, results, applist,
+           message, help-card, selected, section-sep, choice-group...)
+           shrinks together on mobile - overriding it individually per
+           element let them drift out of sync with each other. */
+        --section-gap: 32px;
     }
 
     .topbar {
         gap: 8px;
         font-size: 1.3rem;
-        margin-bottom: 32px;
     }
 
     .menu-overlay {
@@ -937,14 +957,6 @@ body.editing #field {
 
     .record-card {
         padding: 10px 0;
-    }
-
-    #results {
-        margin-top: 32px;
-    }
-
-    #selected {
-        margin-top: 32px;
     }
 
     .authform {

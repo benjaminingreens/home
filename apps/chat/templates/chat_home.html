@@ -4,21 +4,6 @@
 
 <div id="chat-page">
 
-{% if groups|length > 1 %}
-
-<form method="post" class="chat-switcher">
-<input type="hidden" name="action" value="switch">
-<select name="group_id" onchange="this.form.submit()">
-{% for g in groups %}
-<option value="{{ g.id }}" {% if active_group and g.id == active_group.id %}selected{% endif %}>{{ g.name | lower }}</option>
-{% endfor %}
-</select>
-</form>
-
-{% endif %}
-
-{% if active_group %}
-
 <div id="chat-messages">
 
 {% for m in messages %}
@@ -33,15 +18,13 @@
 
 {% else %}
 
-<p class="muted">no messages in {{ active_group.name | lower }} yet.</p>
+<p class="muted">no messages in {{ group_name | lower }} yet.</p>
 
 {% endfor %}
 
 </div>
 
 <form method="post" id="chat-form">
-
-<input type="hidden" name="action" value="send">
 
 <textarea
     name="text"
@@ -53,46 +36,32 @@
 
 </form>
 
-{% else %}
-
-<p class="muted">you're not in any groups yet &mdash; create or join one in
-<a href="/apps/settings/groups">settings</a>.</p>
-
-{% endif %}
-
 </div>
 
 <script>
 
 const chatMessages = document.getElementById("chat-messages");
-
-if (chatMessages) {
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
+chatMessages.scrollTop = chatMessages.scrollHeight;
 
 const chatForm = document.getElementById("chat-form");
 const chatInput = document.getElementById("chat-input");
 
-if (chatInput) {
-
-    function resizeChatInput() {
-        chatInput.style.height = "0px";
-        chatInput.style.height = chatInput.scrollHeight + "px";
-    }
-
-    chatInput.addEventListener("input", resizeChatInput);
-
-    chatInput.addEventListener("keydown", e => {
-        if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            if (chatInput.value.trim()) chatForm.submit();
-        }
-    });
-
-    resizeChatInput();
-    chatInput.focus();
-
+function resizeChatInput() {
+    chatInput.style.height = "0px";
+    chatInput.style.height = chatInput.scrollHeight + "px";
 }
+
+chatInput.addEventListener("input", resizeChatInput);
+
+chatInput.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        if (chatInput.value.trim()) chatForm.submit();
+    }
+});
+
+resizeChatInput();
+chatInput.focus();
 
 </script>
 

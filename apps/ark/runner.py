@@ -41,8 +41,13 @@ def run(workspace, command):
     command = command.strip()
     tokens = shlex.split(command)
 
-    if tokens and tokens[0] in known_commands():
-        args = tokens
+    if tokens and tokens[0].lower() in known_commands():
+        # Dispatch is case-insensitive ("Help"/"HELP"/"help" all count),
+        # but the actual subprocess call uses the canonical lowercase
+        # spelling - the real ark binary's own command dispatch is
+        # case-sensitive, so a token like "Help" would otherwise be
+        # passed through unrecognized and misinterpreted.
+        args = [tokens[0].lower()] + tokens[1:]
     else:
         args = [command]
 

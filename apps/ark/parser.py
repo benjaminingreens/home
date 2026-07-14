@@ -1,9 +1,9 @@
 import re
 
-from markupsafe import Markup, escape
+from markupsafe import escape
 
 from core.text import split_title
-from core.colors import tag_color
+from core.colors import colorize_meta
 
 RECORD = re.compile(
     r"^(note|todo|evnt):\s*(.*?)\s*(?:({.*?})\s*)?\[(.*?)\]$"
@@ -22,6 +22,28 @@ def strip_id(meta):
     cleaned = re.sub(r"{\s*;\s*", "{", cleaned)
 
     return cleaned
+
+
+META_TITLE = re.compile(r"/([^;{}]+)")
+
+
+def split_meta_title(meta):
+    """Ark's own record syntax supports a `/title` metadata field (see
+    `ark help`'s "Metadata symbols" section) - pull it out as the result
+    card's title when present, and drop it from the meta shown
+    underneath (it's already shown as the title, no need to repeat it)."""
+
+    m = META_TITLE.search(meta)
+
+    if not m:
+        return None, meta
+
+    title = m.group(1).strip()
+    inner = meta[1:-1] if meta.startswith("{") and meta.endswith("}") else meta
+    parts = [p.strip() for p in inner.split(";") if p.strip() and not p.strip().startswith("/")]
+    remaining = "{" + "; ".join(parts) + "}" if parts else ""
+
+    return title, remaining
 
 
 def parse(stdout):
@@ -43,7 +65,13 @@ def parse(stdout):
         if not m:
             continue
 
-        title, preview = split_title(m.group(2))
+        meta = strip_id(m.group(3) or "")
+        meta_title, meta = split_meta_title(meta)
+
+        if meta_title:
+            title, preview = meta_title, m.group(2)
+        else:
+            title, preview = split_title(m.group(2))
 
         records.append({
 
@@ -53,7 +81,7 @@ def parse(stdout):
 
             "preview": preview,
 
-            "meta": strip_id(m.group(3) or ""),
+            "meta": meta,
 
             "path": m.group(4),
 
@@ -65,9 +93,11 @@ def parse(stdout):
 def highlight_meta(line):
     """Ark stores records on disk as `type: text {meta};;` - reading a
     file shows that raw syntax verbatim, so wrap the trailing {meta}
-    block in a styled span to visually separate the bookkeeping from the
-    actual note content. Falls back to a plain escaped line when there's
-    no trailing {...} to highlight (e.g. plain text files, .arkrc)."""
+    block's individual ;-separated items in their own colors (via
+    colorize_meta - same per-item treatment as the result cards) instead
+    of the whole block as one color. Falls back to a plain escaped line
+    when there's no trailing {...} to highlight (e.g. plain text files,
+    .arkrc)."""
 
     m = TRAILING_META.search(line)
 
@@ -75,9 +105,7 @@ def highlight_meta(line):
         return escape(line)
 
     prefix = line[:m.start()]
-    html = escape(prefix)
-    color = tag_color(m.group(1))
-    html += Markup(f'<span class="line-meta" style="color: {color}">') + escape(m.group(1)) + Markup("</span>")
+    html = escape(prefix) + colorize_meta(m.group(1))
 
     if m.group(2):
         html += escape(m.group(2))

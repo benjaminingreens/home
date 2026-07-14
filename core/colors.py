@@ -1,3 +1,23 @@
+from markupsafe import Markup, escape
+
+
+def _hex_to_rgb(hex_color):
+    hex_color = hex_color.lstrip("#")
+    return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def _rgb_to_hex(rgb):
+    return "#" + "".join(f"{max(0, min(255, round(c))):02x}" for c in rgb)
+
+
+def mix(hex_a, hex_b, t):
+    """Linear-interpolate between two hex colors - t=0 is hex_a, t=1 is
+    hex_b."""
+
+    a, b = _hex_to_rgb(hex_a), _hex_to_rgb(hex_b)
+    return _rgb_to_hex(a[i] + (b[i] - a[i]) * t for i in range(3))
+
+
 def contrasting_text_color(hex_color):
     """Simple perceived-brightness threshold, not full WCAG contrast math -
     good enough to guarantee readability for an arbitrary user-picked
@@ -8,6 +28,24 @@ def contrasting_text_color(hex_color):
     luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
 
     return "#000000" if luminance > 0.6 else "#ffffff"
+
+
+def theme_colors(bg_hex):
+    """Every text tier the CSS needs, all derived from the user's chosen
+    background rather than fixed grays - fixed grays only look right
+    against the one background they were originally tuned for (black);
+    mixing toward whatever background is actually in use keeps secondary/
+    faint text readable (and borders visible) regardless of what the user
+    picks."""
+
+    fg = contrasting_text_color(bg_hex)
+
+    return {
+        "fg": fg,
+        "fg_muted": mix(fg, bg_hex, 0.35),
+        "fg_faint": mix(fg, bg_hex, 0.65),
+        "border": mix(fg, bg_hex, 0.85),
+    }
 
 
 TAG_PALETTE = (
@@ -23,3 +61,25 @@ def tag_color(text):
     Mirrored in JS in file.html's highlightMeta() - keep both in sync."""
 
     return TAG_PALETTE[sum(ord(c) for c in text) % len(TAG_PALETTE)]
+
+
+def colorize_meta(text):
+    """Split a semicolon-separated {meta} blob into individually colored
+    spans instead of one flat color for the whole block, so distinct
+    metadata items (a tag, a priority, a timestamp...) read as distinct
+    items rather than a single undifferentiated string."""
+
+    if not text:
+        return Markup("")
+
+    parts = [p.strip() for p in text.strip("{}").split(";") if p.strip()]
+
+    if not parts:
+        return escape(text)
+
+    spans = [
+        Markup('<span style="color: {}">').format(tag_color(p)) + escape(p) + Markup("</span>")
+        for p in parts
+    ]
+
+    return Markup("{") + Markup("; ").join(spans) + Markup("}")

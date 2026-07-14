@@ -18,7 +18,7 @@ from .storage import init
 from .auth import login, logout
 from .users import has_any_users, create_first_admin
 from . import groups as core_groups
-from .colors import contrasting_text_color, tag_color
+from .colors import theme_colors, tag_color, colorize_meta
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -42,6 +42,7 @@ else:
     app.secret_key = secrets.token_hex(32)
 
 app.jinja_env.filters["tag_color"] = tag_color
+app.jinja_env.filters["colorize_meta"] = colorize_meta
 
 
 EXEMPT_PATHS = ("/login", "/logout", "/register", "/setup")
@@ -90,13 +91,18 @@ def inject_topbar_context():
     active = resolve_active_workspace(user)
     bg_color = user["background_color"]
 
+    theme = theme_colors(bg_color)
+
     return {
         "current_user_ctx": user,
         "current_group": {"id": active["group_id"], "name": active["group_name"]},
         "user_groups": core_groups.list_user_groups(user["id"]),
         "nav_apps": APPS,
         "bg_color": bg_color,
-        "fg_color": contrasting_text_color(bg_color),
+        "fg_color": theme["fg"],
+        "fg_muted_color": theme["fg_muted"],
+        "fg_faint_color": theme["fg_faint"],
+        "border_color": theme["border"],
     }
 
 

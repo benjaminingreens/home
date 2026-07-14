@@ -134,13 +134,26 @@ function tagColor(s) {
     return TAG_PALETTE[sum % TAG_PALETTE.length];
 }
 
+// Mirrors core/colors.py's colorize_meta() - individual ;-separated
+// items get their own color instead of the whole {meta} block being one
+// flat color.
+function colorizeMeta(inner) {
+    const parts = inner.split(";").map(p => p.trim()).filter(Boolean);
+
+    if (!parts.length) return "";
+
+    return parts
+        .map(p => '<span style="color: ' + tagColor(p) + '">' + escapeHtml(p) + "</span>")
+        .join("; ");
+}
+
 function highlightMeta(line) {
-    const m = line.match(/(\{[^{}]*\})(;;)?\s*$/);
+    const m = line.match(/\{([^{}]*)\}(;;)?\s*$/);
 
     if (!m) return escapeHtml(line);
 
     let html = escapeHtml(line.slice(0, m.index));
-    html += '<span class="line-meta" style="color: ' + tagColor(m[1]) + '">' + escapeHtml(m[1]) + "</span>";
+    html += "{" + colorizeMeta(m[1]) + "}";
 
     if (m[2]) html += escapeHtml(m[2]);
 

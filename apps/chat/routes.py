@@ -1,7 +1,7 @@
-from flask import render_template, request, redirect, session
+from flask import render_template, request, redirect
 
 from core.auth import current_user
-from core import groups as core_groups
+from apps.ark.routes import resolve_active_workspace
 
 from . import bp, NAME
 from .storage import append_message, load_messages
@@ -9,49 +9,33 @@ from .storage import append_message, load_messages
 
 @bp.route("/", methods=["GET", "POST"])
 def home():
+    """Chat follows the same "current group" every other app uses (the
+    group behind users.active_workspace_id, switched via the topbar's
+    group menu) rather than its own independent session-based selector -
+    one place to switch group, not two."""
+
     user = current_user()
 
     if not user:
         return redirect("/login")
 
-    user_groups = core_groups.list_user_groups(user["id"])
-    group_ids = {g["id"] for g in user_groups}
+    active = resolve_active_workspace(user)
+    group_id = active["group_id"]
 
     if request.method == "POST":
-        action = request.form.get("action")
+        text = request.form.get("text", "")
 
-        if action == "switch":
-            group_id = int(request.form.get("group_id", 0))
+        if text.strip():
+            append_message(group_id, user["username"], text)
 
-            if group_id in group_ids:
-                session["chat_group_id"] = group_id
-
-            return redirect("/apps/chat/")
-
-        elif action == "send":
-            group_id = session.get("chat_group_id")
-            text = request.form.get("text", "")
-
-            if group_id in group_ids and text.strip():
-                append_message(group_id, user["username"], text)
-
-            return redirect("/apps/chat/")
-
-    active_group_id = session.get("chat_group_id")
-    active_group = next((g for g in user_groups if g["id"] == active_group_id), None)
-
-    if not active_group and user_groups:
-        active_group = user_groups[0]
-        session["chat_group_id"] = active_group["id"]
-
-    messages = load_messages(active_group["id"]) if active_group else []
+        return redirect("/apps/chat/")
 
     return render_template(
         "chat_home.html",
+        page_class="chat",
         user=user,
         app_label=NAME,
         app_home="/apps/chat/",
-        groups=user_groups,
-        active_group=active_group,
-        messages=messages,
+        group_name=active["group_name"],
+        messages=load_messages(group_id),
     )

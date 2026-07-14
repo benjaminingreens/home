@@ -2,7 +2,7 @@
 
 <nav class="topbar">
 <button type="button" class="topbar-group" style="color: {{ current_user_ctx.accent_color }}"
-        onclick="openMenu('group')">{{ current_group.name | lower }}'s</button>
+        onclick="openMenu('group')">{{ current_group.name | lower }}</button>
 <button type="button" class="topbar-appname" onclick="openMenu('app')">{{ (app_label or "home") | lower }}</button>
 </nav>
 
@@ -34,13 +34,6 @@
 
 <a href="/" class="menu-item">go home</a>
 
-{% if nav_apps %}
-<div class="menu-section">apps</div>
-{% for a in nav_apps %}
-<a href="/apps/{{ a.id }}/" class="menu-item menu-sub">{{ a.name | lower }}</a>
-{% endfor %}
-{% endif %}
-
 {% if workspace_options is defined %}
 <div class="menu-section">select workspace</div>
 {% for w in workspace_options %}
@@ -52,6 +45,13 @@
 {% if git_linked is defined and not git_linked %}
 <a href="/apps/ark/workspace" class="menu-item menu-sub">link this workspace</a>
 {% endif %}
+{% endif %}
+
+{% if nav_apps %}
+<div class="menu-section">apps</div>
+{% for a in nav_apps %}
+<a href="/apps/{{ a.id }}/" class="menu-item menu-sub">{{ a.name | lower }}</a>
+{% endfor %}
 {% endif %}
 
 {% if workspace_toggles is defined %}

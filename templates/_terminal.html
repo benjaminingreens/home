@@ -74,7 +74,7 @@
 {% endif %}
 
 {% if record.meta %}
-<div class="record-meta-row"><span class="record-id" style="color: {{ record.meta | tag_color }}">{{ record.meta }}</span></div>
+<div class="record-meta-row"><span class="record-id">{{ record.meta | colorize_meta }}</span></div>
 {% endif %}
 
 </a>
