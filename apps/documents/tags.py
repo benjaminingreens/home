@@ -29,26 +29,32 @@ def _as_note(record, workspace):
     }
 
 
-def _root_txt_notes(ws):
-    """.txt files sitting directly at the workspace root (siblings of
-    note/todo/evnt - e.g. an untidied inbox.txt, or anything else someone
-    drops there) aren't Ark records the query engine knows about. Surface
-    them too rather than hiding anything that isn't already tidied."""
+def _plain_txt_notes(ws, seen_paths):
+    """Any .txt file anywhere in the workspace (inbox.txt at the root, a
+    stray file in todo/evnt, a nested folder someone made up) that isn't
+    already one of Ark's own note/ records. Surfaced so nothing written
+    to the workspace is invisible in Documents just because it hasn't
+    been tidied or doesn't live under note/."""
 
     if not ws["path"].is_dir():
         return []
 
     notes = []
 
-    for f in sorted(ws["path"].glob("*.txt")):
+    for f in sorted(ws["path"].rglob("*.txt")):
         if not f.is_file():
+            continue
+
+        relpath = str(f.relative_to(ws["path"]))
+
+        if relpath in seen_paths:
             continue
 
         content = f.read_text(encoding="utf-8", errors="replace")
         title, preview = split_title(content)
 
         notes.append(_as_note(
-            {"title": title, "preview": preview, "meta": content, "display_meta": "", "path": f.name},
+            {"title": title, "preview": preview, "meta": content, "display_meta": "", "path": relpath},
             ws,
         ))
 
@@ -67,7 +73,7 @@ def scan_notes(workspaces):
 
         records, _, _ = run(ws["path"], "note")
         notes.extend(_as_note(r, ws) for r in records)
-        notes.extend(_root_txt_notes(ws))
+        notes.extend(_plain_txt_notes(ws, {r["path"] for r in records}))
 
     return notes
 
@@ -92,10 +98,11 @@ def notes_by_tags(workspaces, tags):
         if not ws["path"].is_dir():
             continue
 
+        all_records, _, _ = run(ws["path"], "note")
         records, _, _ = run(ws["path"], query)
         notes.extend(_as_note(r, ws) for r in records)
 
-        for note in _root_txt_notes(ws):
+        for note in _plain_txt_notes(ws, {r["path"] for r in all_records}):
             if all(t in note["tags"] for t in tags):
                 notes.append(note)
 

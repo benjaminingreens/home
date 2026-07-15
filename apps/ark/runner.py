@@ -96,7 +96,7 @@ def _git(workspace, *args):
         return subprocess.CompletedProcess(args, 1, "", "timed out")
 
 
-def auto_sync(workspace, workspace_id):
+def auto_sync(workspace, workspace_id, force=False):
     """Best-effort background sync - called on every workspace page load
     and after every mutation, so the user never has to think about
     syncing. Commits any local changes, fetches + merges the remote, then
@@ -110,13 +110,26 @@ def auto_sync(workspace, workspace_id):
 
     Silently no-ops if the workspace isn't git-linked, is offline/the
     remote is unreachable, or is already flagged conflicted - in all
-    these cases the caller just proceeds with whatever's on disk."""
+    these cases the caller just proceeds with whatever's on disk.
+
+    Page-load callers go through the throttle (see core.sync_state) - a
+    workspace only actually gets checked once per SYNC_THROTTLE_SECONDS,
+    no matter how many people load the page in that window. Callers
+    following a mutation (save, tidy, a new note) pass force=True, since
+    those are one person's own action rather than something that scales
+    with total viewers, and the whole point is getting their change
+    pushed out promptly."""
 
     if not is_git_linked(workspace):
         return
 
     if sync_state.is_conflicted(workspace_id):
         return
+
+    if not force and not sync_state.due_for_sync(workspace_id):
+        return
+
+    sync_state.mark_synced(workspace_id)
 
     status = _git(workspace, "status", "--porcelain")
 

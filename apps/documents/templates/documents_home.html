@@ -13,7 +13,7 @@
 <textarea
     id="query"
     name="query"
-    placeholder="type /help for info"
+    placeholder="enter a command..."
     spellcheck="false"
     autocomplete="off"
     autofocus></textarea>
@@ -28,7 +28,7 @@
 
 {% if message %}
 
-<div class="message">{{ message }}</div>
+<div class="message{% if is_error %} error{% endif %}">{{ message }}</div>
 
 {% endif %}
 
@@ -266,6 +266,12 @@ query.addEventListener("input", update);
 
 query.addEventListener("click", renderMirror);
 
+query.addEventListener("touchend", () => {
+
+    requestAnimationFrame(renderMirror);
+
+});
+
 query.addEventListener("keyup", renderMirror);
 
 query.addEventListener("focus", () => field.classList.add("focused"));
@@ -281,6 +287,14 @@ document.addEventListener("selectionchange", () => {
 field.classList.add("focused");
 
 update();
+
+window.addEventListener("pageshow", () => {
+
+    query.focus();
+    field.classList.add("focused");
+    renderMirror();
+
+});
 
 </script>
 

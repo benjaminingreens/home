@@ -131,10 +131,13 @@ CONFLICT_MESSAGE = "workspace has a sync conflict - resolve it first"
 
 
 def process(workspace, workspace_id, query):
-    """Returns (added, records, message, help_commands, help_more_hint,
-    help_extra) - the last three are None outside the help/help-more
-    paths, which render.html renders via the shared _help.html partial
-    instead of stuffing curated text into the generic `message` string.
+    """Returns (added, records, message, is_error, help_commands) -
+    help_commands is None outside the /help path, which render.html
+    renders via the shared _help.html partial instead of stuffing curated
+    text into the generic `message` string. is_error marks messages that
+    mean "that didn't work" (unknown command, blocked by a conflict, an
+    Ark-reported error) so the template can style them differently from
+    an ordinary result.
 
     A leading "/" marks a HOME system command (help, tidy --apply);
     anything else is handed straight to Ark's own query engine untouched,
@@ -151,48 +154,44 @@ def process(workspace, workspace_id, query):
     query = query.strip()
 
     if not query:
-        return False, [], "", None, None, None
+        return False, [], "", False, None
 
     if query.startswith("/"):
         command = query[1:].strip().lower()
 
         if command == "help":
-            return False, [], "", ARK_HELP, "type '/help more' to see every ark command", None
-
-        if command == "help more":
-            _, ark_help, _ = run(workspace, "help")
-            return False, [], "", ARK_HELP, None, ark_help
+            return False, [], "", False, ARK_HELP
 
         if command == "tidy":
             if sync_state.is_conflicted(workspace_id):
-                return False, [], CONFLICT_MESSAGE, None, None, None
+                return False, [], CONFLICT_MESSAGE, True, None
 
             _, stdout, error = run(workspace, "tidy --apply")
-            auto_sync(workspace, workspace_id)
-            return False, [], error or stdout or "nothing to tidy", None, None, None
+            auto_sync(workspace, workspace_id, force=True)
+            return False, [], error or stdout or "nothing to tidy", bool(error), None
 
-        return False, [], f"unknown command: /{command}", None, None, None
+        return False, [], f"unknown command: /{command}", True, None
 
     if query.startswith(("note:", "todo:", "evnt:")):
         if sync_state.is_conflicted(workspace_id):
-            return False, [], CONFLICT_MESSAGE, None, None, None
+            return False, [], CONFLICT_MESSAGE, True, None
 
         add(workspace, query)
-        auto_sync(workspace, workspace_id)
-        return True, [], "added", None, None, None
+        auto_sync(workspace, workspace_id, force=True)
+        return True, [], "added", False, None
 
     records, stdout, error = run(workspace, query)
 
     if error:
-        return False, [], error, None, None, None
+        return False, [], error, True, None
 
     if records:
-        return False, records, "", None, None, None
+        return False, records, "", False, None
 
     if stdout:
-        return False, [], stdout, None, None, None
+        return False, [], stdout, False, None
 
-    return False, [], "no results", None, None, None
+    return False, [], "no results", False, None
 
 
 @bp.route("/", methods=["GET", "POST"])
@@ -211,7 +210,9 @@ def home():
     # Opportunistic pull-and-push on every visit - pulls whatever anyone
     # else has pushed since, and pushes anything committed locally (e.g.
     # by a prior save/add/tidy) that hasn't gone out yet. Best-effort: a
-    # no-op if unlinked, offline, or already flagged conflicted.
+    # no-op if unlinked, offline, or already flagged conflicted. Throttled
+    # (see core.sync_state) so a workspace only actually gets checked once
+    # per few seconds, no matter how many people load this page at once.
     auto_sync(workspace, record["id"])
     conflict = sync_state.is_conflicted(record["id"])
 
@@ -254,7 +255,8 @@ def home():
     records = []
     query = ""
     message = "added" if request.args.get("added") else ""
-    help_commands = help_more_hint = help_extra = None
+    is_error = False
+    help_commands = None
 
     if request.method == "POST":
         query = request.form.get("query", "").strip()
@@ -270,22 +272,27 @@ def home():
 
                 if cmd_lower.startswith("new "):
                     if conflict:
-                        message = CONFLICT_MESSAGE
+                        message, is_error = CONFLICT_MESSAGE, True
                     else:
                         relpath = new_file_path(command[4:])
 
                         if relpath:
                             create_new_file(workspace, relpath)
-                            auto_sync(workspace, record["id"])
+                            auto_sync(workspace, record["id"], force=True)
                             return redirect(f"/apps/ark/?file={relpath}")
 
                         return redirect("/apps/ark/")
 
             if not message:
-                added, records, message, help_commands, help_more_hint, help_extra = process(workspace, record["id"], query)
+                added, records, message, is_error, help_commands = process(workspace, record["id"], query)
 
                 if added:
                     return redirect("/apps/ark/?added=1")
+
+    # Idle state (just opened the app, nothing typed/shown yet) defaults
+    # to showing help - about + commands - instead of a blank screen.
+    if not query and not message and not records:
+        help_commands = ARK_HELP
 
     page_class = "results" if records else ""
 
@@ -295,9 +302,8 @@ def home():
         query=query,
         records=records,
         message=message,
+        is_error=is_error,
         help_commands=help_commands,
-        help_more_hint=help_more_hint,
-        help_extra=help_extra,
         help_intro=(ARK_HELP_INTRO if help_commands else None),
         conflict=conflict,
         user=user,
@@ -429,7 +435,7 @@ def save():
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content, encoding="utf-8")
 
-    auto_sync(workspace, record["id"])
+    auto_sync(workspace, record["id"], force=True)
 
     qs = urlencode({"file": relpath, **({"workspace": workspace_id} if workspace_id else {})})
 
@@ -501,7 +507,7 @@ def conflicts():
         if not sync_state.mark_clean(record["id"], expected_version=state["version"]):
             return redirect(f"/apps/ark/conflicts?workspace={record['id']}&stale=1")
 
-        auto_sync(workspace, record["id"])  # picks up anything that landed since
+        auto_sync(workspace, record["id"], force=True)  # picks up anything that landed since
 
         return redirect("/apps/ark/")
 

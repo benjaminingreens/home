@@ -182,11 +182,16 @@ button {
 .topbar {
     display: flex;
     align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
+    justify-content: flex-start;
+    gap: 10px;
     margin-bottom: var(--section-gap);
     font-size: 2rem;
     font-style: italic;
+}
+
+.topbar-sep {
+    color: var(--fg-faint, #555);
+    font-style: normal;
 }
 
 body.editor .topbar {
@@ -690,30 +695,19 @@ body.editing #field {
 
 .help-item {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px 16px;
+    flex-direction: column;
+    gap: 4px;
     padding: 10px 0;
     border-bottom: 1px solid #222;
 }
 
 .help-cmd {
-    flex: 0 0 auto;
-    min-width: 9ch;
     color: #f2d94e;
     font-weight: bold;
 }
 
 .help-desc {
     color: var(--fg-muted, #888);
-}
-
-.help-extra {
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 1px solid #222;
-    color: var(--fg-muted, #888);
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
 }
 
 /* =======================================================

@@ -47,7 +47,10 @@ def home():
     # Documents reads straight off disk for every visible workspace, so it
     # needs the same opportunistic pull Ark's own pages trigger - otherwise
     # someone who only ever browses via Documents could be looking at
-    # stale content. Same auto_sync as Ark, just called from here too.
+    # stale content. Same auto_sync as Ark, throttled the same way too -
+    # this loop can hit several workspaces per request, so the per-
+    # workspace throttle matters even more here than on a single-workspace
+    # Ark page load.
     for ws in workspaces:
         auto_sync(ws["path"], ws["id"])
 
@@ -69,11 +72,10 @@ def home():
                     app_home="/apps/documents/",
                     selected=[],
                     available=[t for t in all_tags if t not in selected],
-                    notes=notes_by_tags(workspaces, selected),
+                    notes=[],
                     show_origin=len(workspaces) > 1,
                     help_commands=DOCS_HELP,
                     help_intro=DOCS_HELP_INTRO,
-                    help_more_hint="use the workspaces menu (tap the app name above) to choose which workspaces' notes show up here.",
                     workspace_toggles=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
                 )
 
@@ -101,6 +103,7 @@ def home():
                 notes=notes_by_tags(workspaces, selected),
                 show_origin=len(workspaces) > 1,
                 message=f"unknown command: /{cmd_lower}",
+                is_error=True,
                 workspace_toggles=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
             )
 
@@ -118,7 +121,15 @@ def home():
         return redirect(f"/apps/documents/?tags={','.join(selected)}")
 
     available = [t for t in all_tags if t not in selected]
-    notes = notes_by_tags(workspaces, selected)
+
+    # Idle state (no tags picked yet) defaults to showing help - about +
+    # commands - rather than dumping every note from every workspace.
+    if selected:
+        notes = notes_by_tags(workspaces, selected)
+        help_commands = None
+    else:
+        notes = []
+        help_commands = DOCS_HELP
 
     selected_view = [
         {
@@ -138,6 +149,8 @@ def home():
         available=available,
         notes=notes,
         show_origin=len(workspaces) > 1,
+        help_commands=help_commands,
+        help_intro=(DOCS_HELP_INTRO if help_commands else None),
         workspace_toggles=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
     )
 

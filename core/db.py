@@ -123,7 +123,9 @@ def init():
 
             remote_sha TEXT NOT NULL DEFAULT '',
 
-            version INTEGER NOT NULL DEFAULT 0
+            version INTEGER NOT NULL DEFAULT 0,
+
+            last_synced_at REAL NOT NULL DEFAULT 0
 
         );
 
@@ -148,3 +150,8 @@ def init():
 
         if "background_color" not in columns:
             con.execute("ALTER TABLE users ADD COLUMN background_color TEXT NOT NULL DEFAULT '#000000'")
+
+        sync_columns = {row["name"] for row in con.execute("PRAGMA table_info(workspace_sync_state)")}
+
+        if "last_synced_at" not in sync_columns:
+            con.execute("ALTER TABLE workspace_sync_state ADD COLUMN last_synced_at REAL NOT NULL DEFAULT 0")

@@ -9,7 +9,7 @@
 <textarea
     id="query"
     name="query"
-    placeholder="{{ placeholder or "type /help for info" }}"
+    placeholder="{{ placeholder or "enter a command..." }}"
     spellcheck="false"
     autocomplete="off"
     autofocus>{{ query }}</textarea>
@@ -24,7 +24,7 @@
 
 {% if message %}
 
-<div class="message">{{ message }}</div>
+<div class="message{% if is_error %} error{% endif %}">{{ message }}</div>
 
 {% endif %}
 
@@ -351,19 +351,13 @@ query.addEventListener("keydown", e => {
 
     }
 
-    if (body.classList.contains("editing")) {
-
-        if (e.ctrlKey) {
-
-            e.preventDefault();
-
-            form.submit();
-
-        }
-
+    // Shift+Enter inserts a newline (matches Chat's convention) - plain
+    // Enter always submits, whatever the query starts with. A "note:"
+    // one-liner used to get silently swallowed here because "editing"
+    // mode intercepted Enter and only Ctrl+Enter submitted - nothing
+    // told the user that, so it just looked broken.
+    if (e.shiftKey)
         return;
-
-    }
 
     e.preventDefault();
 
@@ -373,7 +367,26 @@ query.addEventListener("keydown", e => {
 
 query.addEventListener("input", update);
 
-query.addEventListener("click", renderMirror);
+query.addEventListener("click", () => {
+
+    // A tap/click is the user choosing exactly where to edit - drop the
+    // "stale" flag here (not just on the first keystroke) so the very
+    // next character types in at the tapped position instead of wiping
+    // the whole echoed query first.
+    field.classList.remove("stale");
+
+    renderMirror();
+
+});
+
+query.addEventListener("touchend", () => {
+
+    // On some mobile browsers the native caret finishes settling into
+    // its tapped position slightly after touchend/click fire - one more
+    // render next frame catches that late-arriving position.
+    requestAnimationFrame(renderMirror);
+
+});
 
 query.addEventListener("keyup", renderMirror);
 
@@ -390,5 +403,18 @@ document.addEventListener("selectionchange", () => {
 field.classList.add("focused");
 
 update();
+
+window.addEventListener("pageshow", () => {
+
+    // Browser back-navigation can restore this page from bfcache without
+    // re-running any of the script above - the field can come back
+    // blurred (cursor mirror invisible per the :not(.focused) rule) even
+    // though the textarea itself still has focus-worthy content. Re-sync
+    // on every "shown" event, not just the first real load.
+    query.focus();
+    field.classList.add("focused");
+    renderMirror();
+
+});
 
 </script>

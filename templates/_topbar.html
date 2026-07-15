@@ -3,6 +3,7 @@
 <nav class="topbar">
 <button type="button" class="topbar-group" style="color: {{ current_user_ctx.accent_color }}"
         onclick="openMenu('group')">{{ current_group.name | lower }}</button>
+<span class="topbar-sep">&gt;</span>
 <button type="button" class="topbar-appname" onclick="openMenu('app')">{{ (app_label or "home") | lower }}</button>
 </nav>
 
