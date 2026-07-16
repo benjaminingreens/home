@@ -16,6 +16,17 @@ def _tags_from_meta(meta):
     return sorted(set(TAG_RE.findall(meta)))
 
 
+def _normalize_path(path):
+    """Ark's own query output always prefixes paths with "./"
+    (e.g. "./note/2026/07/x.txt"); Path.relative_to() never does. Without
+    normalizing, the seen_paths dedup silently never matched, so a file
+    Ark's real "note" query had already parsed correctly got reprocessed
+    by the raw-file fallback below too - which doesn't understand a
+    tidied multi-line note's on-disk shape and mangled its title."""
+
+    return path[2:] if path.startswith("./") else path
+
+
 def _as_note(record, workspace):
     """`record["meta"]` doubles as the tag-scan source (needs the full
     raw text, e.g. an entire file's contents for root .txt notes) and
@@ -101,7 +112,7 @@ def scan_notes(workspaces):
 
         records, _, _ = run(ws["path"], "note")
         notes.extend(_as_note(r, ws) for r in records)
-        notes.extend(_plain_txt_notes(ws, {r["path"] for r in records}))
+        notes.extend(_plain_txt_notes(ws, {_normalize_path(r["path"]) for r in records}))
 
     return notes
 
@@ -130,7 +141,7 @@ def notes_by_tags(workspaces, tags):
         records, _, _ = run(ws["path"], query)
         notes.extend(_as_note(r, ws) for r in records)
 
-        for note in _plain_txt_notes(ws, {r["path"] for r in all_records}):
+        for note in _plain_txt_notes(ws, {_normalize_path(r["path"]) for r in all_records}):
             if all(t in note["tags"] for t in tags):
                 notes.append(note)
 
