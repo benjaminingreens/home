@@ -5,11 +5,56 @@ from core.text import split_title
 
 TAG_RE = re.compile(r"#([^\s;]+)")
 
-# One raw Ark record, as it's actually written to disk - "type: content
-# {meta};;" on its own line. Matches both an untidied inbox.txt (mixed
-# note/todo/evnt lines) and a compacted TYPE/yyyy/mm/ file (many records
-# of the same type merged into one file).
+# A single-line Ark record, as written for an untidied inbox.txt or a
+# compacted TYPE/yyyy/mm/ file: "type: content {meta};;" all on one line.
 RECORD_LINE = re.compile(r"^(note|todo|evnt):\s*(.*?)\s*(\{[^{}]*\})?\s*;;\s*$")
+
+# A tidied multi-line note's header line: just "type: {meta}" alone, with
+# the actual title+body following on later lines up to a lone ";;" - Ark
+# writes multi-line notes this way (type/meta on their own line, blank
+# line, then the real content), never inline like a single-line record.
+RECORD_HEADER = re.compile(r"^(note|todo|evnt):\s*(\{[^{}]*\})?\s*$")
+
+
+def _extract_records(content):
+    """Pulls every note:/todo:/evnt: record out of raw file text,
+    handling both shapes Ark writes to disk (see RECORD_LINE/
+    RECORD_HEADER above). Returns a list of (type, body, meta) tuples;
+    empty if the file has no Ark records in it at all, i.e. it's a
+    genuinely freeform text file."""
+
+    lines = content.splitlines()
+    records = []
+    i = 0
+
+    while i < len(lines):
+        line = lines[i].strip()
+        m = RECORD_LINE.match(line)
+
+        if m:
+            records.append((m.group(1), m.group(2), m.group(3) or ""))
+            i += 1
+            continue
+
+        m = RECORD_HEADER.match(line)
+
+        if m:
+            record_type, meta = m.group(1), m.group(2) or ""
+            body_lines = []
+            i += 1
+
+            while i < len(lines) and lines[i].strip() != ";;":
+                body_lines.append(lines[i])
+                i += 1
+
+            i += 1  # past the ";;" terminator line, if one was found
+
+            records.append((record_type, "\n".join(body_lines).strip(), meta))
+            continue
+
+        i += 1
+
+    return records
 
 
 def _tags_from_meta(meta):
@@ -76,10 +121,9 @@ def _plain_txt_notes(ws, seen_paths):
             continue
 
         content = f.read_text(encoding="utf-8", errors="replace")
-        matches = [RECORD_LINE.match(line.strip()) for line in content.splitlines()]
-        matches = [m for m in matches if m]
+        records = _extract_records(content)
 
-        if not matches:
+        if not records:
             title, preview = split_title(content)
 
             notes.append(_as_note(
@@ -88,12 +132,14 @@ def _plain_txt_notes(ws, seen_paths):
             ))
             continue
 
-        for m in matches:
-            if m.group(1) != "note":
+        for record_type, body, meta in records:
+            if record_type != "note":
                 continue
 
+            title, preview = split_title(body)
+
             notes.append(_as_note(
-                {"title": None, "preview": m.group(2), "meta": m.group(3) or "", "path": relpath},
+                {"title": title, "preview": preview, "meta": meta, "path": relpath},
                 ws,
             ))
 
