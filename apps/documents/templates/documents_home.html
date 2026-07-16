@@ -70,7 +70,7 @@
 
 <div class="record-meta-row">
 {% if show_origin %}<span class="record-origin">{{ note.workspace_label | lower }}</span>{% endif %}
-{% if note.meta %}<span class="record-id">{{ note.meta }}</span>{% endif %}
+{% if note.meta %}<span class="record-id">{{ note.meta | colorize_meta }}</span>{% endif %}
 </div>
 
 {% if note.path %}

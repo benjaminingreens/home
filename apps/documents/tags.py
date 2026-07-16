@@ -5,6 +5,12 @@ from core.text import split_title
 
 TAG_RE = re.compile(r"#([^\s;]+)")
 
+# One raw Ark record, as it's actually written to disk - "type: content
+# {meta};;" on its own line. Matches both an untidied inbox.txt (mixed
+# note/todo/evnt lines) and a compacted TYPE/yyyy/mm/ file (many records
+# of the same type merged into one file).
+RECORD_LINE = re.compile(r"^(note|todo|evnt):\s*(.*?)\s*(\{[^{}]*\})?\s*;;\s*$")
+
 
 def _tags_from_meta(meta):
     return sorted(set(TAG_RE.findall(meta)))
@@ -34,7 +40,15 @@ def _plain_txt_notes(ws, seen_paths):
     stray file in todo/evnt, a nested folder someone made up) that isn't
     already one of Ark's own note/ records. Surfaced so nothing written
     to the workspace is invisible in Documents just because it hasn't
-    been tidied or doesn't live under note/."""
+    been tidied or doesn't live under note/.
+
+    A file like this can hold several distinct records on their own
+    lines (an untidied inbox.txt, or a compacted TYPE/yyyy/mm/ file) -
+    those get pulled out individually. Only if the file has no
+    note:/todo:/evnt: records at all is it treated as one freeform note,
+    first line as title - otherwise one record's line could end up
+    shown as the "title" for a completely unrelated record that just
+    happened to share the same file."""
 
     if not ws["path"].is_dir():
         return []
@@ -51,12 +65,26 @@ def _plain_txt_notes(ws, seen_paths):
             continue
 
         content = f.read_text(encoding="utf-8", errors="replace")
-        title, preview = split_title(content)
+        matches = [RECORD_LINE.match(line.strip()) for line in content.splitlines()]
+        matches = [m for m in matches if m]
 
-        notes.append(_as_note(
-            {"title": title, "preview": preview, "meta": content, "display_meta": "", "path": relpath},
-            ws,
-        ))
+        if not matches:
+            title, preview = split_title(content)
+
+            notes.append(_as_note(
+                {"title": title, "preview": preview, "meta": content, "display_meta": "", "path": relpath},
+                ws,
+            ))
+            continue
+
+        for m in matches:
+            if m.group(1) != "note":
+                continue
+
+            notes.append(_as_note(
+                {"title": None, "preview": m.group(2), "meta": m.group(3) or "", "path": relpath},
+                ws,
+            ))
 
     return notes
 

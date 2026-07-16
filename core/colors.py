@@ -63,11 +63,15 @@ def tag_color(text):
     return TAG_PALETTE[sum(ord(c) for c in text) % len(TAG_PALETTE)]
 
 
+META_COLOR = "#f2d94e"
+
+
 def colorize_meta(text):
-    """Split a semicolon-separated {meta} blob into individually colored
-    spans instead of one flat color for the whole block, so distinct
-    metadata items (a tag, a priority, a timestamp...) read as distinct
-    items rather than a single undifferentiated string."""
+    """Split a semicolon-separated {meta} blob and color just the actual
+    metadata items - not the {}/; punctuation around them - one single
+    consistent color, not a different color per item. Used everywhere a
+    {meta} block is shown: result cards and the file editor's inline
+    view of the raw record text."""
 
     if not text:
         return Markup("")
@@ -78,7 +82,7 @@ def colorize_meta(text):
         return escape(text)
 
     spans = [
-        Markup('<span style="color: {}">').format(tag_color(p)) + escape(p) + Markup("</span>")
+        Markup('<span style="color: {}">').format(META_COLOR) + escape(p) + Markup("</span>")
         for p in parts
     ]
 

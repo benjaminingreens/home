@@ -129,28 +129,19 @@ function escapeHtml(s) {
     return s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 }
 
-// Keep in sync with core/colors.py's TAG_PALETTE + tag_color().
-const TAG_PALETTE = [
-    "#7fa8e2", "#7fe28a", "#f2d94e", "#ff8f8f",
-    "#d98fff", "#ff8fd9", "#8fffe2", "#ffb347",
-];
+// Keep in sync with core/colors.py's META_COLOR.
+const META_COLOR = "#f2d94e";
 
-function tagColor(s) {
-    let sum = 0;
-    for (let i = 0; i < s.length; i++) sum += s.charCodeAt(i);
-    return TAG_PALETTE[sum % TAG_PALETTE.length];
-}
-
-// Mirrors core/colors.py's colorize_meta() - individual ;-separated
-// items get their own color instead of the whole {meta} block being one
-// flat color.
+// Mirrors core/colors.py's colorize_meta() - one consistent color for
+// the actual metadata items, not the surrounding {}/; punctuation, and
+// not a different color per item.
 function colorizeMeta(inner) {
     const parts = inner.split(";").map(p => p.trim()).filter(Boolean);
 
     if (!parts.length) return "";
 
     return parts
-        .map(p => '<span style="color: ' + tagColor(p) + '">' + escapeHtml(p) + "</span>")
+        .map(p => '<span style="color: ' + META_COLOR + '">' + escapeHtml(p) + "</span>")
         .join("; ");
 }
 
