@@ -65,19 +65,6 @@ def run(workspace, command):
     return parse(result.stdout), result.stdout.strip(), result.stderr.strip()
 
 
-def add(workspace, text):
-
-    text = text.strip()
-
-    if not text.endswith(";;"):
-        text += ";;"
-
-    inbox = workspace / "inbox.txt"
-
-    with inbox.open("a", encoding="utf-8") as f:
-        f.write(text + "\n")
-
-
 def is_git_linked(workspace):
     return (workspace / ".git").exists()
 

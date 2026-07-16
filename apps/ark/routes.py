@@ -9,7 +9,7 @@ from core import locks as core_locks
 from core import sync_state
 
 from . import bp, NAME
-from .runner import install, run, add, is_git_linked, auto_sync, theirs_content, resolve_conflict
+from .runner import install, run, is_git_linked, auto_sync, theirs_content, resolve_conflict
 from .parser import highlight_meta
 
 
@@ -117,9 +117,7 @@ ARK_HELP_INTRO = (
 )
 
 ARK_HELP = [
-    ("/note: <text>", "save a quick note"),
-    ("/todo: <text>", "save a task"),
-    ("/evnt: <text>", "save an event"),
+    ("add TYPE 'CONTENT'", "save a note/todo/evnt - e.g. add note 'buy milk'"),
     ("tidy", "sort inbox into note/todo/evnt (dry run - shows what would move)"),
     ("/tidy", "same, but actually applies the changes"),
     ("/new <file>", "create a file"),
@@ -131,7 +129,7 @@ CONFLICT_MESSAGE = "workspace has a sync conflict - resolve it first"
 
 
 def process(workspace, workspace_id, query):
-    """Returns (added, records, message, is_error, help_commands) -
+    """Returns (records, message, is_error, help_commands) -
     help_commands is None outside the /help path, which render.html
     renders via the shared _help.html partial instead of stuffing curated
     text into the generic `message` string. is_error marks messages that
@@ -139,66 +137,57 @@ def process(workspace, workspace_id, query):
     Ark-reported error) so the template can style them differently from
     an ordinary result.
 
-    A leading "/" marks a HOME system command (help, tidy --apply,
-    note:/todo:/evnt: quick-add); anything else is handed straight to
-    Ark's own query engine untouched, including a bare "tidy" (real Ark
-    CLI dry-run behavior). note:/todo:/evnt: live behind the slash too,
-    not because Ark's CLI has a real "add" command it maps onto (it
-    doesn't - add() just appends straight to inbox.txt), but because
-    that's exactly why they can't be bare: there's no Ark-native meaning
-    for them to defer to, so leaving them unprefixed would silently
-    intercept text a bare query was supposed to hand untouched to Ark.
-    This is the boundary that keeps HOME's shortcuts from colliding with
-    Ark's own command/query namespace.
+    A leading "/" marks a HOME system command (help, tidy --apply); apps
+    never get their own commands intercepted behind "/" - that's reserved
+    for HOME itself. Everything else, including "add TYPE 'CONTENT'" (the
+    real Ark command for saving a note/todo/evnt) and a bare "tidy" (real
+    Ark CLI dry-run behavior), is handed straight to Ark's own query
+    engine untouched. This is the boundary that keeps HOME's shortcuts
+    from colliding with Ark's own command/query namespace.
 
     Syncing itself isn't a command any more - it happens automatically
-    (see auto_sync, called by the route around every request) - but
-    mutating commands here refuse to run while the workspace is flagged
-    conflicted, since writing more local changes on top of an unresolved
-    conflict only makes the resolution screen harder to reason about."""
+    (see auto_sync, called by the route around every request) - but the
+    HOME-level /tidy convenience refuses to run while the workspace is
+    flagged conflicted, since writing more local changes on top of an
+    unresolved conflict only makes the resolution screen harder to reason
+    about. Bare queries (including Ark's own mutating commands like add/
+    edit/archive) aren't gated this way - they're handed to Ark exactly
+    as typed, and HOME doesn't second-guess what Ark itself allows."""
 
     query = query.strip()
 
     if not query:
-        return False, [], "", False, None
+        return [], "", False, None
 
     if query.startswith("/"):
         command = query[1:].strip()
         lower = command.lower()
 
         if lower == "help":
-            return False, [], "", False, ARK_HELP
+            return [], "", False, ARK_HELP
 
         if lower == "tidy":
             if sync_state.is_conflicted(workspace_id):
-                return False, [], CONFLICT_MESSAGE, True, None
+                return [], CONFLICT_MESSAGE, True, None
 
             _, stdout, error = run(workspace, "tidy --apply")
             auto_sync(workspace, workspace_id, force=True)
-            return False, [], error or stdout or "nothing to tidy", bool(error), None
+            return [], error or stdout or "nothing to tidy", bool(error), None
 
-        if command.startswith(("note:", "todo:", "evnt:")):
-            if sync_state.is_conflicted(workspace_id):
-                return False, [], CONFLICT_MESSAGE, True, None
-
-            add(workspace, command)
-            auto_sync(workspace, workspace_id, force=True)
-            return True, [], "added", False, None
-
-        return False, [], f"unknown command: /{lower}", True, None
+        return [], f"unknown command: /{lower}", True, None
 
     records, stdout, error = run(workspace, query)
 
     if error:
-        return False, [], error, True, None
+        return [], error, True, None
 
     if records:
-        return False, records, "", False, None
+        return records, "", False, None
 
     if stdout:
-        return False, [], stdout, False, None
+        return [], stdout, False, None
 
-    return False, [], "no results", False, None
+    return [], "no results", False, None
 
 
 @bp.route("/", methods=["GET", "POST"])
@@ -261,7 +250,7 @@ def home():
 
     records = []
     query = ""
-    message = "added" if request.args.get("added") else ""
+    message = ""
     is_error = False
     help_commands = None
 
@@ -291,10 +280,7 @@ def home():
                         return redirect("/apps/ark/")
 
             if not message:
-                added, records, message, is_error, help_commands = process(workspace, record["id"], query)
-
-                if added:
-                    return redirect("/apps/ark/?added=1")
+                records, message, is_error, help_commands = process(workspace, record["id"], query)
 
     # Idle state (just opened the app, nothing typed/shown yet) defaults
     # to showing help - about + commands - instead of a blank screen.

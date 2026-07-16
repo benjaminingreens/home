@@ -2,7 +2,7 @@
 
 <div id="prompt">
 
-<form id="command" method="post">
+<form id="command" method="post" action="{{ request.path }}">
 
 <div id="field">
 
@@ -241,9 +241,7 @@ function update() {
 
     if (
 
-        text.startsWith("/note:")
-        || text.startsWith("/todo:")
-        || text.startsWith("/evnt:")
+        text.startsWith("add ")
         || text.includes("\n")
         || text.length > EDIT_LENGTH_THRESHOLD
 
