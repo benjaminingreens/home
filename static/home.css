@@ -616,9 +616,8 @@ body.editing #field {
 
 .record-head {
     display: flex;
-    align-items: baseline;
-    gap: 12px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .record-title {
@@ -656,7 +655,7 @@ body.editing #field {
     align-items: center;
     gap: 8px;
     margin-top: 6px;
-    font-size: 0.9rem;
+    font-size: 0.8em;
     color: var(--fg-muted, #666);
 }
 
@@ -665,7 +664,20 @@ body.editing #field {
 }
 
 .record-id {
+    /* One uniform color for the whole metadata blob, not a rainbow of
+       per-item colors - distinct metadata items already read as distinct
+       because they're semicolon-separated, they don't also need to be
+       color-coded. */
     color: var(--fg-faint, #555);
+}
+
+.record-path {
+    margin-top: 4px;
+    font-size: 0.8em;
+    color: var(--fg-faint, #555);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .message {

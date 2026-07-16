@@ -74,7 +74,11 @@
 {% endif %}
 
 {% if record.meta %}
-<div class="record-meta-row"><span class="record-id">{{ record.meta | colorize_meta }}</span></div>
+<div class="record-meta-row"><span class="record-id">{{ record.meta }}</span></div>
+{% endif %}
+
+{% if record.path %}
+<div class="record-path">{{ record.path }}</div>
 {% endif %}
 
 </a>
