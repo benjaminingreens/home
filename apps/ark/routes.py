@@ -117,9 +117,9 @@ ARK_HELP_INTRO = (
 )
 
 ARK_HELP = [
-    ("note: <text>", "save a quick note"),
-    ("todo: <text>", "save a task"),
-    ("evnt: <text>", "save an event"),
+    ("/note: <text>", "save a quick note"),
+    ("/todo: <text>", "save a task"),
+    ("/evnt: <text>", "save an event"),
     ("tidy", "sort inbox into note/todo/evnt (dry run - shows what would move)"),
     ("/tidy", "same, but actually applies the changes"),
     ("/new <file>", "create a file"),
@@ -139,11 +139,17 @@ def process(workspace, workspace_id, query):
     Ark-reported error) so the template can style them differently from
     an ordinary result.
 
-    A leading "/" marks a HOME system command (help, tidy --apply);
-    anything else is handed straight to Ark's own query engine untouched,
-    including a bare "tidy" (real Ark CLI dry-run behavior) - this is the
-    boundary that keeps HOME's shortcuts from colliding with Ark's own
-    command/query namespace.
+    A leading "/" marks a HOME system command (help, tidy --apply,
+    note:/todo:/evnt: quick-add); anything else is handed straight to
+    Ark's own query engine untouched, including a bare "tidy" (real Ark
+    CLI dry-run behavior). note:/todo:/evnt: live behind the slash too,
+    not because Ark's CLI has a real "add" command it maps onto (it
+    doesn't - add() just appends straight to inbox.txt), but because
+    that's exactly why they can't be bare: there's no Ark-native meaning
+    for them to defer to, so leaving them unprefixed would silently
+    intercept text a bare query was supposed to hand untouched to Ark.
+    This is the boundary that keeps HOME's shortcuts from colliding with
+    Ark's own command/query namespace.
 
     Syncing itself isn't a command any more - it happens automatically
     (see auto_sync, called by the route around every request) - but
@@ -157,12 +163,13 @@ def process(workspace, workspace_id, query):
         return False, [], "", False, None
 
     if query.startswith("/"):
-        command = query[1:].strip().lower()
+        command = query[1:].strip()
+        lower = command.lower()
 
-        if command == "help":
+        if lower == "help":
             return False, [], "", False, ARK_HELP
 
-        if command == "tidy":
+        if lower == "tidy":
             if sync_state.is_conflicted(workspace_id):
                 return False, [], CONFLICT_MESSAGE, True, None
 
@@ -170,15 +177,15 @@ def process(workspace, workspace_id, query):
             auto_sync(workspace, workspace_id, force=True)
             return False, [], error or stdout or "nothing to tidy", bool(error), None
 
-        return False, [], f"unknown command: /{command}", True, None
+        if command.startswith(("note:", "todo:", "evnt:")):
+            if sync_state.is_conflicted(workspace_id):
+                return False, [], CONFLICT_MESSAGE, True, None
 
-    if query.startswith(("note:", "todo:", "evnt:")):
-        if sync_state.is_conflicted(workspace_id):
-            return False, [], CONFLICT_MESSAGE, True, None
+            add(workspace, command)
+            auto_sync(workspace, workspace_id, force=True)
+            return True, [], "added", False, None
 
-        add(workspace, query)
-        auto_sync(workspace, workspace_id, force=True)
-        return True, [], "added", False, None
+        return False, [], f"unknown command: /{lower}", True, None
 
     records, stdout, error = run(workspace, query)
 

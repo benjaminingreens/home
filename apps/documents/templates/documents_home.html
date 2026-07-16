@@ -28,7 +28,7 @@
 
 {% if message %}
 
-<div class="message{% if is_error %} error{% endif %}">{{ message }}</div>
+<div class="message toast{% if is_error %} error{% endif %}">{{ message }}</div>
 
 {% endif %}
 
@@ -274,7 +274,10 @@ query.addEventListener("touchend", () => {
 
 query.addEventListener("keyup", renderMirror);
 
-query.addEventListener("focus", () => field.classList.add("focused"));
+query.addEventListener("focus", () => {
+    field.classList.add("focused");
+    renderMirror();
+});
 
 query.addEventListener("blur", () => field.classList.remove("focused"));
 
@@ -287,6 +290,12 @@ document.addEventListener("selectionchange", () => {
 field.classList.add("focused");
 
 update();
+
+const toastEl = document.querySelector(".message.toast");
+
+if (toastEl) {
+    setTimeout(() => toastEl.classList.add("dismissing"), 3200);
+}
 
 window.addEventListener("pageshow", () => {
 

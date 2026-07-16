@@ -162,6 +162,7 @@ def index():
 
     query = ""
     message = ""
+    is_error = False
     help_commands = help_intro = None
 
     if request.method == "POST":
@@ -184,6 +185,7 @@ def index():
                     return redirect(f"/apps/{app_id}/")
 
                 message = "no such app"
+                is_error = True
 
     return render_template(
         "index.html",
@@ -192,11 +194,12 @@ def index():
         query=query,
         records=[],
         message=message,
+        is_error=is_error,
         help_commands=help_commands,
         help_intro=help_intro,
         user=user,
         app_label="home",
-        placeholder="type /help for info",
+        placeholder="enter a command...",
         apps=APPS,
     )
 

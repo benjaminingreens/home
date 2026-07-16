@@ -98,6 +98,22 @@ function closeMenus() {
     document.querySelectorAll('.menu-overlay').forEach(function (el) {
         el.classList.add('hidden');
     });
+
+    // Opening a menu blurs the query box (focus moves to the button that
+    // opened it) - closing it should give focus back, or the cursor's
+    // custom mirror is left stuck in its unfocused/invisible state even
+    // though the terminal screen behind the menu never actually changed.
+    var q = document.getElementById('query');
+    var f = document.getElementById('field');
+
+    if (q && f) {
+        q.focus();
+        f.classList.add('focused');
+
+        if (typeof renderMirror === 'function') {
+            renderMirror();
+        }
+    }
 }
 document.querySelectorAll('.menu-overlay').forEach(function (el) {
     el.addEventListener('click', function (e) {

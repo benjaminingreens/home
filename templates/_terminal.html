@@ -24,7 +24,7 @@
 
 {% if message %}
 
-<div class="message{% if is_error %} error{% endif %}">{{ message }}</div>
+<div class="message toast{% if is_error %} error{% endif %}">{{ message }}</div>
 
 {% endif %}
 
@@ -241,9 +241,9 @@ function update() {
 
     if (
 
-        text.startsWith("note:")
-        || text.startsWith("todo:")
-        || text.startsWith("evnt:")
+        text.startsWith("/note:")
+        || text.startsWith("/todo:")
+        || text.startsWith("/evnt:")
         || text.includes("\n")
         || text.length > EDIT_LENGTH_THRESHOLD
 
@@ -341,21 +341,17 @@ query.addEventListener("keydown", e => {
     if (e.key !== "Enter")
         return;
 
-    if (ghostMatch && !e.ctrlKey) {
-
-        e.preventDefault();
-
-        window.location.href = "/apps/" + ghostMatch.id + "/";
-
-        return;
-
-    }
-
-    // Shift+Enter inserts a newline (matches Chat's convention) - plain
-    // Enter always submits, whatever the query starts with. A "note:"
-    // one-liner used to get silently swallowed here because "editing"
-    // mode intercepted Enter and only Ctrl+Enter submitted - nothing
-    // told the user that, so it just looked broken.
+    // Ghost text (app-name completion) is only a preview - Tab /
+    // ArrowRight (above) are the only way to accept it. Enter always
+    // submits exactly what was typed; the backend's own prefix-matching
+    // (resolve_launch) decides where a partial app name goes, so the
+    // outcome for a genuine match is unchanged, it's just not hijacked
+    // client-side ahead of whatever the user actually typed.
+    //
+    // Shift+Enter inserts a newline (matches Chat's convention) instead
+    // of submitting. A "note:" one-liner used to get silently swallowed
+    // here because "editing" mode intercepted Enter and only Ctrl+Enter
+    // submitted - nothing told the user that, so it just looked broken.
     if (e.shiftKey)
         return;
 
@@ -390,7 +386,10 @@ query.addEventListener("touchend", () => {
 
 query.addEventListener("keyup", renderMirror);
 
-query.addEventListener("focus", () => field.classList.add("focused"));
+query.addEventListener("focus", () => {
+    field.classList.add("focused");
+    renderMirror();
+});
 
 query.addEventListener("blur", () => field.classList.remove("focused"));
 
@@ -403,6 +402,12 @@ document.addEventListener("selectionchange", () => {
 field.classList.add("focused");
 
 update();
+
+const toastEl = document.querySelector(".message.toast");
+
+if (toastEl) {
+    setTimeout(() => toastEl.classList.add("dismissing"), 3200);
+}
 
 window.addEventListener("pageshow", () => {
 

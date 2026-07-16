@@ -683,6 +683,20 @@ body.editing #field {
     color: inherit;
 }
 
+.message.toast {
+    animation: message-pop-in 200ms ease-out;
+}
+
+.message.toast.dismissing {
+    opacity: 0;
+    transition: opacity 600ms ease-in;
+}
+
+@keyframes message-pop-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 .help-card {
     margin: var(--section-gap) 0 0;
 }
