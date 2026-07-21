@@ -9,9 +9,9 @@
 
 <div id="menu-group" class="menu-overlay hidden">
 
-<button type="button" class="menu-close" onclick="closeMenus()">close menu</button>
+<button type="button" class="menu-close" onclick="closeMenus()" aria-label="close menu">&times;</button>
 
-<a href="/" class="menu-item">go home</a>
+<a href="/" class="menu-item menu-home">go home</a>
 
 {% for g in user_groups %}
 <form method="post" action="/group" class="menu-form">
@@ -26,7 +26,7 @@
 
 <div id="menu-app" class="menu-overlay hidden">
 
-<button type="button" class="menu-close" onclick="closeMenus()">close menu</button>
+<button type="button" class="menu-close" onclick="closeMenus()" aria-label="close menu">&times;</button>
 
 {% if workspace_options is defined %}
 {% for w in workspace_options %}
