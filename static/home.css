@@ -230,8 +230,10 @@ body.editor .topbar {
     background: var(--bg-color, #000);
     z-index: 50;
     overflow-y: auto;
+    /* Matches body's own padding exactly (see body rule above) so the
+       menu's left edge lines up with the page content behind it instead
+       of appearing to shift when the menu opens. */
     padding: 32px;
-    padding-top: 64px;
     display: flex;
     flex-direction: column;
 }
@@ -265,24 +267,32 @@ body.editor .topbar {
     background: #111;
 }
 
+.menu-item.active {
+    color: #7fa8e2;
+}
+
 .menu-logout {
     margin-top: auto;
     border-bottom: none;
 }
 
 .menu-close {
-    position: fixed;
-    top: 16px;
-    left: 16px;
-    z-index: 51;
+    display: block;
+    width: 100%;
+    text-align: left;
     border: none;
+    border-bottom: 1px solid #222;
     background: none;
     color: var(--fg-color, #fff);
     font: inherit;
-    font-size: 1rem;
-    line-height: 1;
+    font-size: var(--row-font-size, 1.4rem);
+    font-style: normal;
     cursor: pointer;
-    padding: 8px 0;
+    padding: 16px 0;
+}
+
+.menu-close:hover {
+    background: #111;
 }
 
 .menu-checklist {
@@ -993,8 +1003,7 @@ body.chat .topbar {
     }
 
     .menu-overlay {
-        padding: 20px;
-        padding-top: 56px;
+        padding: 16px;
     }
 
     .record {

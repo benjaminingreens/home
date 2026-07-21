@@ -16,7 +16,7 @@
 {% for g in user_groups %}
 <form method="post" action="/group" class="menu-form">
 <input type="hidden" name="group_id" value="{{ g.id }}">
-<button type="submit" class="menu-item">{{ ('&#8250; ' | safe) if g.id == current_group.id }}{{ g.name | lower }}</button>
+<button type="submit" class="menu-item{{ ' active' if g.id == current_group.id }}">{{ g.name | lower }}</button>
 </form>
 {% endfor %}
 
@@ -28,13 +28,11 @@
 
 <button type="button" class="menu-close" onclick="closeMenus()">close menu</button>
 
-<a href="/" class="menu-item">go home</a>
-
 {% if workspace_options is defined %}
 {% for w in workspace_options %}
 <form method="post" action="/apps/ark/workspaces" class="menu-form">
 <input type="hidden" name="workspace_id" value="{{ w.id }}">
-<button type="submit" class="menu-item">{{ ('&#8250; ' | safe) if w.id == active_workspace_id }}{{ w.name | lower }}</button>
+<button type="submit" class="menu-item{{ ' active' if w.id == active_workspace_id }}">{{ w.name | lower }}</button>
 </form>
 {% endfor %}
 {% if git_linked is defined and not git_linked %}
