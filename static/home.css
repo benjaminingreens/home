@@ -231,6 +231,7 @@ body.editor .topbar {
     z-index: 50;
     overflow-y: auto;
     padding: 32px;
+    padding-top: 64px;
     display: flex;
     flex-direction: column;
 }
@@ -241,21 +242,6 @@ body.editor .topbar {
 
 .menu-form {
     display: contents;
-}
-
-.menu-whoami {
-    color: var(--fg-muted, #666);
-    font-size: 1rem;
-    font-style: normal;
-    margin-bottom: 24px;
-}
-
-.menu-section {
-    color: var(--fg-muted, #666);
-    font-size: 1rem;
-    font-style: normal;
-    margin-top: 20px;
-    padding-bottom: 4px;
 }
 
 .menu-item {
@@ -279,39 +265,24 @@ body.editor .topbar {
     background: #111;
 }
 
-.menu-item.active {
-    color: #7fa8e2;
-}
-
-.menu-item.muted {
-    color: var(--fg-muted, #666);
-}
-
-.menu-sub {
-    padding-left: 20px;
-    font-size: 1.2rem;
-    color: var(--fg-muted, #aaa);
-}
-
 .menu-logout {
     margin-top: auto;
     border-bottom: none;
-    color: var(--fg-muted, #888);
 }
 
 .menu-close {
     position: fixed;
     top: 16px;
-    right: 16px;
+    left: 16px;
     z-index: 51;
-    width: 44px;
-    height: 44px;
     border: none;
     background: none;
     color: var(--fg-color, #fff);
-    font-size: 2rem;
+    font: inherit;
+    font-size: 1rem;
     line-height: 1;
     cursor: pointer;
+    padding: 8px 0;
 }
 
 .menu-checklist {
@@ -319,23 +290,22 @@ body.editor .topbar {
     flex-direction: column;
 }
 
-.menu-checkbox {
+.menu-toggle {
     display: flex;
     align-items: center;
     gap: 12px;
-    cursor: pointer;
 }
 
-.menu-checkbox input {
-    width: 20px;
-    height: 20px;
-    flex: 0 0 auto;
+.menu-toggle input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
 }
 
-.menu-apply {
-    margin-top: 8px;
-    color: #7fa8e2;
-    text-align: center;
+.menu-toggle:has(input:not(:checked)) {
+    text-decoration: line-through;
+    opacity: 0.5;
 }
 
 /* =======================================================
@@ -1024,6 +994,7 @@ body.chat .topbar {
 
     .menu-overlay {
         padding: 20px;
+        padding-top: 56px;
     }
 
     .record {
