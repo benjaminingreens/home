@@ -853,11 +853,28 @@ body.chat .topbar {
    ======================================================= */
 
 #editorbar {
-    margin-bottom: 8px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 16px 32px;
+    background: var(--bg-color, #000);
+    border-bottom: 1px solid #222;
     font-size: 1rem;
-    overflow-wrap: break-word;
-    word-break: break-word;
-    hyphens: auto;
+    /* Hidden above the viewport by default - the immersive editor shows
+       only the text itself. Pulling up while already at the top of the
+       page (or scrolling back down) slides this in/out - see the
+       pull-to-reveal JS in file.html. */
+    transform: translateY(-100%);
+    transition: transform 0.2s ease;
+}
+
+#editorbar.shown {
+    transform: translateY(0);
 }
 
 #saveStatus {
@@ -867,7 +884,6 @@ body.chat .topbar {
 }
 
 #toggleEdit,
-.filename-btn,
 .linkbtn {
     padding: 0;
     border: none;
@@ -891,10 +907,6 @@ body.chat .topbar {
     cursor: not-allowed;
 }
 
-.filename-btn {
-    color: var(--fg-muted, #ccc);
-}
-
 .linkbtn {
     color: var(--fg-color, #fff);
 }
@@ -908,17 +920,32 @@ body.chat .topbar {
     width: 100%;
     overflow-wrap: break-word;
     word-break: break-word;
+    /* Disables double-tap-to-zoom so a double-tap here reaches our own
+       dblclick handler (starts writing) instead of the browser zooming. */
+    touch-action: manipulation;
 }
 
 .line.hl {
-    /* Inverted from the current theme (fg becomes the highlight
-       background, bg becomes the text) instead of a fixed yellow -
-       always readable and never clashes with whatever background the
-       user picked. */
+    /* Flashes twice (inverted from the current theme - fg becomes the
+       highlight background, bg becomes the text - instead of a fixed
+       yellow, so it's always readable against whatever background the
+       user picked) then settles back to plain text. Just enough to catch
+       your eye when landing here from a search result, not a permanent
+       marker that sits there for as long as the file stays open. */
     display: inline-block;
     width: 100%;
-    background: var(--fg-color, #f2d94e);
-    color: var(--bg-color, #000);
+    animation: hl-flash 1.4s ease-in-out 2;
+}
+
+@keyframes hl-flash {
+    0%, 100% {
+        background: transparent;
+        color: inherit;
+    }
+    25%, 75% {
+        background: var(--fg-color, #f2d94e);
+        color: var(--bg-color, #000);
+    }
 }
 
 #taWrap {
@@ -1033,6 +1060,11 @@ body.chat .topbar {
     body {
         padding: 16px;
         font-size: 19px;
+    }
+
+    #editorbar {
+        padding: 16px;
+        gap: 16px;
     }
 
     :root {
