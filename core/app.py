@@ -54,7 +54,6 @@ HOME_HELP_INTRO = (
 
 HOME_HELP = [
     ("<app name>", "open that app"),
-    ("/help", "this message"),
 ]
 
 
@@ -170,16 +169,22 @@ def index():
 
         if query:
 
-            # There's no "app" to defer to on the launcher itself, so bare
-            # input is already system-level here - a leading "/" is
-            # accepted too, just for consistency with every other screen.
-            lookup = query.lstrip("/")
+            # "/" is reserved for the two universal HOME commands, valid
+            # from any app. Bare input on the launcher is its own "app
+            # command" - an app name to jump straight to.
+            if query.startswith("/"):
+                command = query[1:].strip().lower()
 
-            if lookup.lower() == "help":
-                help_commands = HOME_HELP
-                help_intro = HOME_HELP_INTRO
+                if command == "home":
+                    return redirect("/")
+
+                if command == "help":
+                    help_commands = HOME_HELP
+                    help_intro = HOME_HELP_INTRO
+                else:
+                    message, is_error = f"unknown command: /{command}", True
             else:
-                app_id = resolve_launch(lookup, APPS)
+                app_id = resolve_launch(query, APPS)
 
                 if app_id:
                     return redirect(f"/apps/{app_id}/")

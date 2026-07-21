@@ -3,7 +3,6 @@ from flask import render_template, request, redirect
 from core.auth import current_user
 from core import workspaces as core_workspaces
 from core import groups as core_groups
-from apps.ark.routes import new_file_path, create_new_file, resolve_active_workspace
 from apps.ark.runner import auto_sync
 
 from . import bp, NAME
@@ -17,8 +16,6 @@ DOCS_HELP_INTRO = (
 
 DOCS_HELP = [
     ("<tag>", "filter notes by tag"),
-    ("/new <file>", "create a file"),
-    ("/help", "this message"),
 ]
 
 
@@ -60,11 +57,16 @@ def home():
     if request.method == "POST":
         raw_query = request.form.get("query", "").strip()
 
+        # "/" is reserved for the two universal HOME commands, valid from
+        # any app - everything else (here, a bare tag) is Documents' own
+        # command syntax, handled below.
         if raw_query.startswith("/"):
-            command = raw_query[1:].strip()
-            cmd_lower = command.lower()
+            command = raw_query[1:].strip().lower()
 
-            if cmd_lower == "help":
+            if command == "home":
+                return redirect("/")
+
+            if command == "help":
                 return render_template(
                     "documents_home.html",
                     user=user,
@@ -79,20 +81,6 @@ def home():
                     workspace_toggles=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
                 )
 
-            if cmd_lower.startswith("new "):
-                relpath = new_file_path(command[4:])
-
-                if relpath:
-                    active = resolve_active_workspace(user)
-                    target = core_workspaces.path(active["group_slug"], "ark", active["name"])
-                    create_new_file(target, relpath)
-
-                    return redirect(
-                        f"/apps/ark/?file={relpath}&app=Documents&home=/apps/documents/"
-                    )
-
-                return redirect("/apps/documents/")
-
             return render_template(
                 "documents_home.html",
                 user=user,
@@ -102,7 +90,7 @@ def home():
                 available=[t for t in all_tags if t not in selected],
                 notes=notes_by_tags(workspaces, selected),
                 show_origin=len(workspaces) > 1,
-                message=f"unknown command: /{cmd_lower}",
+                message=f"unknown command: /{command}",
                 is_error=True,
                 workspace_toggles=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
             )
@@ -121,15 +109,7 @@ def home():
         return redirect(f"/apps/documents/?tags={','.join(selected)}")
 
     available = [t for t in all_tags if t not in selected]
-
-    # Idle state (no tags picked yet) defaults to showing help - about +
-    # commands - rather than dumping every note from every workspace.
-    if selected:
-        notes = notes_by_tags(workspaces, selected)
-        help_commands = None
-    else:
-        notes = []
-        help_commands = DOCS_HELP
+    notes = notes_by_tags(workspaces, selected) if selected else []
 
     selected_view = [
         {
@@ -149,8 +129,6 @@ def home():
         available=available,
         notes=notes,
         show_origin=len(workspaces) > 1,
-        help_commands=help_commands,
-        help_intro=(DOCS_HELP_INTRO if help_commands else None),
         workspace_toggles=core_groups.list_all_workspaces_with_visibility(user["id"], "ark"),
     )
 

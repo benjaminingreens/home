@@ -80,36 +80,6 @@ def safe_file(workspace, relpath):
     return target
 
 
-def new_file_path(relpath):
-    """Where a bare "new <file>" should land. inbox.txt is Ark's own
-    canonical root file (tidy later sorts it into note/todo/evnt), so it
-    stays at the workspace root; anything else without an explicit
-    note/todo/evnt prefix defaults into note/, since Ark's scanner never
-    looks at the workspace root otherwise."""
-
-    relpath = relpath.strip()
-
-    if not relpath:
-        return None
-
-    top = relpath.split("/", 1)[0]
-
-    if top not in ("note", "todo", "evnt") and relpath != "inbox.txt":
-        relpath = f"note/{relpath}"
-
-    return relpath
-
-
-def create_new_file(workspace, relpath):
-    target = safe_file(workspace, relpath)
-    target.parent.mkdir(parents=True, exist_ok=True)
-
-    if not target.exists():
-        target.write_text("", encoding="utf-8")
-
-    return target
-
-
 ARK_HELP_INTRO = (
     "ark is your personal notes and task repository. jot down notes, "
     "todos, and events as plain text - they're kept organized and synced "
@@ -119,62 +89,29 @@ ARK_HELP_INTRO = (
 ARK_HELP = [
     ("add TYPE 'CONTENT'", "save a note/todo/evnt - e.g. add note 'buy milk'"),
     ("tidy", "sort inbox into note/todo/evnt (dry run - shows what would move)"),
-    ("/tidy", "same, but actually applies the changes"),
-    ("/new <file>", "create a file"),
-    ("/home", "go to the home screen"),
-    ("/help", "this message"),
+    ("tidy --apply", "same, but actually applies the changes"),
 ]
 
 CONFLICT_MESSAGE = "workspace has a sync conflict - resolve it first"
 
 
 def process(workspace, workspace_id, query):
-    """Returns (records, message, is_error, help_commands) -
-    help_commands is None outside the /help path, which render.html
-    renders via the shared _help.html partial instead of stuffing curated
-    text into the generic `message` string. is_error marks messages that
-    mean "that didn't work" (unknown command, blocked by a conflict, an
-    Ark-reported error) so the template can style them differently from
-    an ordinary result.
+    """Returns (records, message, is_error, help_commands) - help_commands
+    is always None here, since "/help" (a universal HOME command, not an
+    Ark one) is intercepted by the view before this is ever called. is_error
+    marks messages that mean "that didn't work" (an Ark-reported error) so
+    the template can style them differently from an ordinary result.
 
-    A leading "/" marks a HOME system command (help, tidy --apply); apps
-    never get their own commands intercepted behind "/" - that's reserved
-    for HOME itself. Everything else, including "add TYPE 'CONTENT'" (the
-    real Ark command for saving a note/todo/evnt) and a bare "tidy" (real
-    Ark CLI dry-run behavior), is handed straight to Ark's own query
-    engine untouched. This is the boundary that keeps HOME's shortcuts
-    from colliding with Ark's own command/query namespace.
-
-    Syncing itself isn't a command any more - it happens automatically
-    (see auto_sync, called by the route around every request) - but the
-    HOME-level /tidy convenience refuses to run while the workspace is
-    flagged conflicted, since writing more local changes on top of an
-    unresolved conflict only makes the resolution screen harder to reason
-    about. Bare queries (including Ark's own mutating commands like add/
-    edit/archive) aren't gated this way - they're handed to Ark exactly
-    as typed, and HOME doesn't second-guess what Ark itself allows."""
+    Every query that reaches this function is bare - Ark's own command/
+    query syntax, untouched, including mutating commands like add/tidy
+    --apply/edit/archive. HOME doesn't second-guess what Ark itself
+    allows; the only commands HOME intercepts itself are the universal
+    "/home" and "/help", handled one level up."""
 
     query = query.strip()
 
     if not query:
         return [], "", False, None
-
-    if query.startswith("/"):
-        command = query[1:].strip()
-        lower = command.lower()
-
-        if lower == "help":
-            return [], "", False, ARK_HELP
-
-        if lower == "tidy":
-            if sync_state.is_conflicted(workspace_id):
-                return [], CONFLICT_MESSAGE, True, None
-
-            _, stdout, error = run(workspace, "tidy --apply")
-            auto_sync(workspace, workspace_id, force=True)
-            return [], error or stdout or "nothing to tidy", bool(error), None
-
-        return [], f"unknown command: /{lower}", True, None
 
     records, stdout, error = run(workspace, query)
 
@@ -259,33 +196,22 @@ def home():
 
         if query:
 
+            # "/" is reserved for the two universal HOME commands, valid
+            # from any app - everything else (including Ark's own real
+            # command syntax) is bare, handled by process() below.
             if query.startswith("/"):
-                command = query[1:].strip()
-                cmd_lower = command.lower()
+                command = query[1:].strip().lower()
 
-                if cmd_lower == "home":
+                if command == "home":
                     return redirect("/")
 
-                if cmd_lower.startswith("new "):
-                    if conflict:
-                        message, is_error = CONFLICT_MESSAGE, True
-                    else:
-                        relpath = new_file_path(command[4:])
+                if command == "help":
+                    help_commands = ARK_HELP
+                else:
+                    message, is_error = f"unknown command: /{command}", True
 
-                        if relpath:
-                            create_new_file(workspace, relpath)
-                            auto_sync(workspace, record["id"], force=True)
-                            return redirect(f"/apps/ark/?file={relpath}")
-
-                        return redirect("/apps/ark/")
-
-            if not message:
+            else:
                 records, message, is_error, help_commands = process(workspace, record["id"], query)
-
-    # Idle state (just opened the app, nothing typed/shown yet) defaults
-    # to showing help - about + commands - instead of a blank screen.
-    if not query and not message and not records:
-        help_commands = ARK_HELP
 
     page_class = "results" if records else ""
 
