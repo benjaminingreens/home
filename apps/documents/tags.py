@@ -72,6 +72,22 @@ def _normalize_path(path):
     return path[2:] if path.startswith("./") else path
 
 
+def _mtime(workspace, relpath):
+    """The note's own on-disk last-modified time - used to default-sort
+    Documents' listing (most-recently-touched first). This one filesystem
+    timestamp does double duty as both signals asked for: for a note
+    that's never been touched since ark tidied it into place, mtime *is*
+    its creation time; for one that's since been edited and saved, mtime
+    reflects that edit. Ark itself only tracks a one-time "created" (~)
+    stamp (and only after tidying), so the real file's mtime is a better,
+    always-available proxy than trying to parse that out."""
+
+    try:
+        return (workspace["path"] / relpath).stat().st_mtime
+    except OSError:
+        return 0
+
+
 def _as_note(record, workspace):
     """`record["meta"]` doubles as the tag-scan source (needs the full
     raw text, e.g. an entire file's contents for root .txt notes) and
@@ -88,6 +104,7 @@ def _as_note(record, workspace):
         "meta": record.get("display_meta", record["meta"]),
         "workspace_id": workspace["id"],
         "workspace_label": workspace["label"],
+        "sort_key": _mtime(workspace, _normalize_path(record["path"])),
     }
 
 
@@ -160,6 +177,8 @@ def scan_notes(workspaces):
         notes.extend(_as_note(r, ws) for r in records)
         notes.extend(_plain_txt_notes(ws, {_normalize_path(r["path"]) for r in records}))
 
+    notes.sort(key=lambda n: n["sort_key"], reverse=True)
+
     return notes
 
 
@@ -190,5 +209,7 @@ def notes_by_tags(workspaces, tags):
         for note in _plain_txt_notes(ws, {_normalize_path(r["path"]) for r in all_records}):
             if all(t in note["tags"] for t in tags):
                 notes.append(note)
+
+    notes.sort(key=lambda n: n["sort_key"], reverse=True)
 
     return notes
