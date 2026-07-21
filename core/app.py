@@ -96,16 +96,31 @@ def inject_topbar_context():
     # and this module is imported (via load_apps) before those blueprints
     # exist, so importing it at module load time here would be premature.
     from apps.ark.routes import resolve_active_workspace
+    from apps.ark.runner import is_git_linked
+    from . import workspaces as core_workspaces
 
     active = resolve_active_workspace(user)
     bg_color = user["background_color"]
 
     theme = theme_colors(bg_color)
 
+    # Workspace switching is a global concept, not an Ark-only one - every
+    # page's topbar shows and can switch it, even pages (Chat, Settings,
+    # the launcher) that never otherwise touch workspaces directly. A
+    # route rendering its own view of a *specific* workspace (e.g. Ark
+    # opened via a Documents link with ?workspace=X) passes its own
+    # workspace_options/active_workspace_id to render_template(), which
+    # takes precedence over these defaults for that one request.
+    workspace_path = core_workspaces.path(active["group_slug"], "ark", active["name"])
+
     return {
         "current_user_ctx": user,
         "current_group": {"id": active["group_id"], "name": active["group_name"]},
+        "current_workspace": {"id": active["id"], "name": active["name"]},
         "user_groups": core_groups.list_user_groups(user["id"]),
+        "workspace_options": core_groups.list_group_workspaces(active["group_id"], "ark"),
+        "active_workspace_id": active["id"],
+        "git_linked": is_git_linked(workspace_path),
         "nav_apps": APPS,
         "bg_color": bg_color,
         "fg_color": theme["fg"],

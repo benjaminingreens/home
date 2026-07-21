@@ -198,41 +198,44 @@ body.editor .topbar {
     display: none;
 }
 
-.topbar-group,
-.topbar-appname {
+.topbar-seg {
     border: none;
     background: none;
     padding: 0;
     font: inherit;
     font-size: inherit;
     font-style: italic;
+    font-weight: bold;
     cursor: pointer;
 }
 
-.topbar-group {
-    font-weight: bold;
+.topbar-app {
+    color: #7fe28a;
 }
 
-.topbar-appname {
+.topbar-group {
     color: var(--fg-color, #fff);
 }
 
-.topbar-group:hover,
-.topbar-appname:hover {
+.topbar-workspace {
+    color: #ffb347;
+}
+
+.topbar-seg:hover {
     text-decoration: underline;
 }
 
-/* Full-screen menu (group / app dropdowns) */
+/* Full-screen menu (app / group / workspace pickers) */
 
 .menu-overlay {
     position: fixed;
     inset: 0;
     background: var(--bg-color, #000);
     z-index: 50;
-    overflow-y: auto;
     /* Matches body's own padding exactly (see body rule above) so the
        menu's left edge lines up with the page content behind it instead
-       of appearing to shift when the menu opens. */
+       of appearing to shift when the menu opens. Only .menu-list (below)
+       scrolls - the header and footer stay pinned in place. */
     padding: 32px;
     display: flex;
     flex-direction: column;
@@ -240,6 +243,44 @@ body.editor .topbar {
 
 .menu-overlay.hidden {
     display: none;
+}
+
+.menu-header {
+    flex: 0 0 auto;
+}
+
+.menu-title {
+    font-size: var(--row-font-size, 1.4rem);
+    font-style: italic;
+    margin: 16px 0;
+}
+
+.menu-search {
+    display: block;
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid #222;
+    background: none;
+    color: var(--fg-color, #fff);
+    font: inherit;
+    font-size: var(--row-font-size, 1.4rem);
+    padding: 8px 0 16px;
+}
+
+.menu-search:focus {
+    outline: none;
+}
+
+.menu-list {
+    flex: 1 1 auto;
+    /* Without this a flex child won't shrink below its content size, so
+       overflow-y here would never actually kick in. */
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.menu-footer {
+    flex: 0 0 auto;
 }
 
 .menu-form {
@@ -271,13 +312,16 @@ body.editor .topbar {
     color: #7fa8e2;
 }
 
+.menu-item.hidden {
+    display: none;
+}
+
 .menu-item.menu-home {
     font-style: italic;
     font-weight: 700;
 }
 
 .menu-logout {
-    margin-top: auto;
     border-bottom: none;
 }
 
@@ -286,14 +330,13 @@ body.editor .topbar {
     width: 100%;
     text-align: left;
     border: none;
-    border-bottom: 1px solid #222;
     background: none;
     color: var(--fg-color, #fff);
     font: inherit;
     font-size: 1.8rem;
     line-height: 1;
     cursor: pointer;
-    padding: 12px 0;
+    padding: 4px 0;
 }
 
 .menu-close:hover {

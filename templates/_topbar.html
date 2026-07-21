@@ -1,58 +1,96 @@
 {% if current_user_ctx %}
 
+{% set visible_toggles = (workspace_toggles | selectattr('visible') | list) if workspace_toggles is defined else None %}
+
 <nav class="topbar">
-<button type="button" class="topbar-group" style="color: {{ current_user_ctx.accent_color }}"
-        onclick="openMenu('group')">{{ current_group.name | lower }}</button>
-<span class="topbar-sep">&gt;</span>
-<button type="button" class="topbar-appname" onclick="openMenu('app')">{{ (app_label or "home") | lower }}</button>
+<button type="button" class="topbar-seg topbar-app" onclick="openMenu('app')">{{ (app_label or "home") | lower }}</button>
+<span class="topbar-sep">/</span>
+<button type="button" class="topbar-seg topbar-group" style="color: {{ current_user_ctx.accent_color }}" onclick="openMenu('group')">{{ current_group.name | lower }}</button>
+<span class="topbar-sep">/</span>
+<button type="button" class="topbar-seg topbar-workspace" onclick="openMenu('workspace')">{% if visible_toggles is not none %}{% if visible_toggles | length > 1 %}multiple{% elif visible_toggles | length == 1 %}{{ visible_toggles[0].name | lower }}{% else %}none{% endif %}{% else %}{{ current_workspace.name | lower }}{% endif %}</button>
 </nav>
-
-<div id="menu-group" class="menu-overlay hidden">
-
-<button type="button" class="menu-close" onclick="closeMenus()" aria-label="close menu">&times;</button>
-
-<a href="/" class="menu-item menu-home">go home</a>
-
-{% for g in user_groups %}
-<form method="post" action="/group" class="menu-form">
-<input type="hidden" name="group_id" value="{{ g.id }}">
-<button type="submit" class="menu-item{{ ' active' if g.id == current_group.id }}">{{ g.name | lower }}</button>
-</form>
-{% endfor %}
-
-<a href="/logout" class="menu-item menu-logout">log out of {{ current_user_ctx.username | lower }}</a>
-
-</div>
 
 <div id="menu-app" class="menu-overlay hidden">
 
+<div class="menu-header">
 <button type="button" class="menu-close" onclick="closeMenus()" aria-label="close menu">&times;</button>
+<div class="menu-title">select app</div>
+<input type="text" class="menu-search" placeholder="search..." autocomplete="off" oninput="filterMenu('app', this.value)">
+</div>
 
-{% if workspace_options is defined %}
-{% for w in workspace_options %}
-<form method="post" action="/apps/ark/workspaces" class="menu-form">
-<input type="hidden" name="workspace_id" value="{{ w.id }}">
-<button type="submit" class="menu-item{{ ' active' if w.id == active_workspace_id }}">{{ w.name | lower }}</button>
+<div class="menu-list">
+{% for a in nav_apps %}
+<a href="/apps/{{ a.id }}/" class="menu-item{{ ' active' if a.name == app_label }}" data-search="{{ a.name | lower }}">{{ a.name | lower }}</a>
+{% endfor %}
+</div>
+
+<div class="menu-footer">
+<a href="/" class="menu-item menu-home">go home</a>
+<a href="/logout" class="menu-item menu-logout">log out of {{ current_user_ctx.username | lower }}</a>
+</div>
+
+</div>
+
+<div id="menu-group" class="menu-overlay hidden">
+
+<div class="menu-header">
+<button type="button" class="menu-close" onclick="closeMenus()" aria-label="close menu">&times;</button>
+<div class="menu-title">select group</div>
+<input type="text" class="menu-search" placeholder="search..." autocomplete="off" oninput="filterMenu('group', this.value)">
+</div>
+
+<div class="menu-list">
+{% for g in user_groups %}
+<form method="post" action="/group" class="menu-form">
+<input type="hidden" name="group_id" value="{{ g.id }}">
+<button type="submit" class="menu-item{{ ' active' if g.id == current_group.id }}" data-search="{{ g.name | lower }}">{{ g.name | lower }}</button>
 </form>
 {% endfor %}
-{% if git_linked is defined and not git_linked %}
-<a href="/apps/ark/workspace" class="menu-item">link this workspace</a>
-{% endif %}
-{% endif %}
+</div>
 
+<div class="menu-footer">
+<a href="/" class="menu-item menu-home">go home</a>
+<a href="/logout" class="menu-item menu-logout">log out of {{ current_user_ctx.username | lower }}</a>
+</div>
+
+</div>
+
+<div id="menu-workspace" class="menu-overlay hidden">
+
+<div class="menu-header">
+<button type="button" class="menu-close" onclick="closeMenus()" aria-label="close menu">&times;</button>
+<div class="menu-title">select workspace</div>
+<input type="text" class="menu-search" placeholder="search..." autocomplete="off" oninput="filterMenu('workspace', this.value)">
+</div>
+
+<div class="menu-list">
 {% if workspace_toggles is defined %}
 <form id="visibilityForm" method="post" action="/apps/documents/visibility" class="menu-checklist">
 <input type="hidden" name="all_ids" value="{% for w in workspace_toggles %}{{ w.id }}{{ "," if not loop.last }}{% endfor %}">
 {% for w in workspace_toggles %}
-<label class="menu-item menu-toggle">
+<label class="menu-item menu-toggle" data-search="{{ (w.group_name ~ ' ' ~ w.name) | lower }}">
 <input type="checkbox" name="visible_ids" value="{{ w.id }}" {% if w.visible %}checked{% endif %}>
 {{ w.group_name | lower }} / {{ w.name | lower }}
 </label>
 {% endfor %}
 </form>
+{% else %}
+{% for w in workspace_options %}
+<form method="post" action="/apps/ark/workspaces" class="menu-form">
+<input type="hidden" name="workspace_id" value="{{ w.id }}">
+<button type="submit" class="menu-item{{ ' active' if w.id == active_workspace_id }}" data-search="{{ w.name | lower }}">{{ w.name | lower }}</button>
+</form>
+{% endfor %}
+{% if not git_linked %}
+<a href="/apps/ark/workspace" class="menu-item" data-search="link this workspace">link this workspace</a>
 {% endif %}
+{% endif %}
+</div>
 
+<div class="menu-footer">
+<a href="/" class="menu-item menu-home">go home</a>
 <a href="/logout" class="menu-item menu-logout">log out of {{ current_user_ctx.username | lower }}</a>
+</div>
 
 </div>
 
@@ -61,9 +99,18 @@ function openMenu(name) {
     document.getElementById('menu-' + name).classList.remove('hidden');
 }
 
+function filterMenu(name, token) {
+    token = token.trim().toLowerCase();
+
+    document.querySelectorAll('#menu-' + name + ' .menu-list [data-search]').forEach(function (el) {
+        var match = !token || el.dataset.search.indexOf(token) !== -1;
+        el.classList.toggle('hidden', !match);
+    });
+}
+
 // No apply button on the workspace visibility picker - closing the menu
 // is what applies it. Only actually resubmit if a checkbox was touched,
-// so opening/closing the app menu without touching anything doesn't
+// so opening/closing the workspace menu without touching anything doesn't
 // force a page reload every time.
 var visibilityDirty = false;
 
