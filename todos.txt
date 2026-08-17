@@ -1,276 +1,37 @@
-todo: fix the chat so it looks more like this:
+todo: chat - add live messaging (websockets/socket.io) so people don't have to refresh to see new messages. visual redesign (log-style layout, coloured usernames via tag_color, growing textarea, display_time) already shipped - this is just the realtime transport piece. note: this means moving off sync gunicorn workers (e.g. -k eventlet), a real deploy/infra change, not just app code.
 
-def chat():
-    with db() as con:
-        rows = con.execute("""
-            SELECT messages.id, messages.body, messages.created_at, users.display_name
-            FROM messages
-            JOIN users ON users.id = messages.user_id
-            ORDER BY messages.id DESC
-            LIMIT 100
-        """).fetchall()
+todo: topbar on mobile - check whether the app/group/workspace menu redesign (full-screen overlay menus, live search) already covers this well enough, or if a dropdown-style treatment is still specifically wanted.
 
-    messages = list(reversed(rows))
+todo: interactive/clickable help - _help.html command list items should be clickable and fill the query box (with the <placeholder> part pre-selected so typing overwrites just that part), instead of being plain unclickable text. not yet built.
 
-    def name_colour(name):
-        return USER_COLOURS.get(name, "#cccccc")
+todo: file editor as its own app ("Editor") - currently lives inside Ark's file view (apps/ark/templates/file.html). raised as a maybe; would need its own workspace/permission model since access control currently rides on Ark's membership checks. not committed to, just an open idea.
 
-    def short_time(value):
-        try:
-            dt = datetime.fromisoformat(value)
-            return dt.strftime("%d/%m %H:%M")
-        except ValueError:
-            return value[:16]
+--- homeapp file-structure redesign (multi-phase) ---
 
-    rendered = []
-    for m in messages:
-        rendered.append(f"""
-<div class="message" data-id="{m["id"]}">
-  <div class="message-meta">
-    <span class="message-name" style="color: {name_colour(m["display_name"])}">{esc(m["display_name"])}</span>
-    <span class="message-time">{esc(short_time(m["created_at"]))}</span>
-  </div>
-  <div class="message-body">{esc(m["body"])}</div>
-</div>
-""")
+phase 1 (DONE, 2026-08-17): inserted documents/media/appdata as three sibling branches inside each workspace. core/workspaces.py::path() now returns <root>/documents instead of <root> itself; new root() gives the true workspace root. ark keeps working exactly as it did before - same .txt extension, same note/todo/evnt dirs, vendored binary completely untouched - just nested one level deeper on disk. real server data migrates automatically and idempotently on server startup (core/storage.py::_migrate_documents_layout(), same "check current shape, fix if needed, run every boot" convention as core/db.py's own schema fixups) - no manual script to run. media/ and appdata/ are not eagerly created (nothing writes to them yet) and are not git-tracked - see the two "open decision" sync items below, which are follow-ups, not blockers. verified: migration idempotency + empty-workspace handling, full Flask-test-client flow (new workspace creation, save, lock, documents scan, enable_git puts .git inside documents/ correctly), and a real dev-server run against a seeded old-layout directory - zero errors, migration fired correctly on real startup.
 
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>chat</title>
-<style>
-html {{
-  box-sizing: border-box;
-  background: #000;
-  height: 100%;
-}}
+phase 2 (NEXT - not started): redesign ark itself. Done entirely in the real upstream repo at /home/benjamin/ark (separate git repo, NOT apps/ark/vendor in homeapp - that's a git submodule pinned to a tag of benjaminingreens/ark.git and gets overwritten by the vendor-bump process). Work happens there, gets committed/tagged, and only then does homeapp's submodule pointer get bumped (mirrors the existing "Bump ark vendor to vX.Y.Z" commits already in homeapp's history, e.g. 60589d7) - homeapp's apps/ark/routes.py, runner.py, parser.py are NOT part of this phase, they're just the Flask integration glue and don't need to change for this.
 
-*, *::before, *::after {{
-  box-sizing: inherit;
-}}
+  Concrete changes needed, with current code loci (in the real ark repo, same file layout as the vendored copy):
 
-body {{
-  margin: 0;
-  padding: 0 20px;
-  background: #000;
-  color: #fff;
-  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 21px;
-  line-height: 1.55;
-  height: 100%;
-  overflow: hidden;
-}}
+  - scanner (scan_all(), bin/ark:1015-1043): currently only descends into note/, todo/, evnt/ subdirectories under each configured base (@TYPES = qw(note todo evnt), bin/ark:60), and within those, only opens files matching /\.txt$/ (bin/ark:1028). change: remove the directory restriction entirely - walk the whole base tree (respecting .arkrc's [bases] list same as today), filter by .ark extension instead of .txt. this is what makes "a .ark file anywhere, flat, zettelkasten-style" actually work - the atomic record is the unit, location is meaningless, organisation happens at query time via tags/queries, not via directory.
 
-.chat-page {{
-  width: 100%;
-  max-width: 760px;
-  height: 100dvh;
-  margin: 0 auto;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}}
+  - ark init (cmd_init(), bin/ark:82-150): currently hardcodes creating note/, todo/, evnt/ directories (bin/ark:86-88) up front. change: stop creating type directories - there's nothing to scaffold anymore since loose files can go anywhere. keep the .ark/ marker dir + default .arkrc.
 
-.chat-messages {{
-  flex: 1 1 auto;
-  overflow-y: auto;
-  padding: 32px 0 20px;
-  scrollbar-width: none;
-}}
+  - tidy (lib/ark/commands/tidy): this is the bulk of the work. today it hardcodes a type->directory mapping (%TYPE_DIR, tidy:71-75) and writes .txt output via output_batch_path() (tidy:419-431, produces e.g. note/2026/07/note_202607_001.txt) and output_multiline_note_path() (tidy:433-446), plus a compact-merge path (tidy:694/705) using the same pattern. source-file selection is also type/extension-gated (wanted_by_level, tidy:247-267, .txt filter at tidy:251; is_item_month_file's note|todo|evnt regex, tidy:233-236).
+    new behaviour:
+      - one flat output folder instead of three type directories. default name "ark", but configurable per-workspace via a new .arkrc key (e.g. output_dir= under [defaults] - the .arkrc parser, load_arkrc() in lib/ark/core.pl:175-300, already accepts arbitrary free-form [defaults] key=value pairs with zero parser changes needed, so this is just "read one more key" inside tidy, not new plumbing).
+      - consolidated batch filenames become DATE-FIRST, not type-first: e.g. 2026-07-note.ark, 2026-07-todo.ark - NOT note-2026-07.ark. this matters: date-first keeps a directory listing chronological regardless of type; type-first would silently re-sort the folder alphabetically by type again, undoing the whole point of dropping note/todo/evnt. same record-count-cap / numeric-suffix batch-splitting behaviour tidy already has today, just with the filename order swapped and .ark extension.
+      - loose, untidied, or hand-created .ark files anywhere in the workspace are NEVER renamed or moved by anything except tidy sweeping them into the output folder - their filenames stay exactly whatever the user gave them, always. only tidy's own consolidated batch output follows the naming convention. this was explicit and deliberate: meta stays entirely inside the file body, never in the filename, for general files - "open any .ark file, do whatever, it just works" was the whole reason filename-as-metadata was rejected earlier in this design discussion. don't reintroduce it beyond tidy's own batch files.
 
-.chat-messages::-webkit-scrollbar {{
-  display: none;
-}}
+  - explicitly rejected ideas, don't relitigate without a good reason: (1) any kind of index/cache to speed up scanning - "the data is the index" is core to ark's philosophy, full live scan on every query is the deliberate, permanent answer, same reasoning as ripgrep having no index and still being fast enough at this scale; (2) encoding type/date/tags in the filename of general .ark files (only tidy's own batch output does this, and only type+date, never tags/status/other volatile fields).
 
-.message {{
-  margin: 0 0 22px;
-}}
+phase 3: rename Documents -> Files. generic display only (no ark-specific tag/record parsing baked in - that stays inside the dedicated ark app, which remains the place for an ark-focused view). browses documents/ + media/ branches. basic unix-like commands only (browse/filter/search, maybe rename/move/delete) - no shell-style invocation of other apps' commands from inside files; that stays via HOME's normal app-switcher, to avoid files needing per-app awareness.
 
-.message-meta {{
-  font-size: 0.78em;
-  line-height: 1.4;
-}}
+open decision: sync mechanism for media/ - git is a poor fit for binary media (no meaningful diff/merge, full-history bloat without LFS). leaning toward a simpler rsync/syncthing-style whole-file mirror (no history) instead of git, but not decided or designed yet.
 
-.message-name {{
-  font-weight: 700;
-}}
+open decision: sync approach for appdata/ - likely needs a per-app answer rather than one universal mechanism. e.g. chat is probably server-authoritative (no real local-first copy to reconcile) rather than needing the same offline-sync treatment as documents/media. not decided.
 
-.message-time {{
-  color: #666;
-  margin-left: 0.7em;
-}}
+open question: chat currently stores data at HOME_DATA_DIR/chat/<group_id>.txt - scoped to group, not workspace. doesn't cleanly fit "one appdata per workspace" without deciding what happens when a group has multiple workspaces. not resolved, chat not moved yet.
 
-.message-body {{
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-}}
-
-.chat-form {{
-  flex: 0 0 auto;
-  padding: 18px 0 24px;
-  background: #000;
-  border-top: 1px solid #222;
-}}
-
-textarea {{
-  display: block;
-  width: 100%;
-  min-height: 42px;
-  max-height: 130px;
-  resize: none;
-  overflow-y: auto;
-  font: inherit;
-  background: #000;
-  color: #fff;
-  border: none;
-  outline: none;
-  padding: 0;
-}}
-
-textarea::placeholder {{
-  color: #555;
-  opacity: 1;
-}}
-
-@media (min-width: 768px) {{
-  body {{
-    padding: 0 32px;
-    font-size: 21px;
-  }}
-
-  .chat-page {{
-    width: 100%;
-    max-width: 900px;
-    height: calc(100dvh - 112px);
-    margin: 56px auto;
-  }}
-
-  .chat-messages {{
-    padding: 0 0 32px;
-  }}
-
-  .message {{
-    margin: 0 0 26px;
-  }}
-
-  .message-body {{
-    max-width: 72ch;
-  }}
-
-  .chat-form {{
-    padding: 20px 0 0;
-  }}
-
-  textarea {{
-    min-height: 44px;
-  }}
-}}
-</style>
-</head>
-<body>
-<div class="chat-page">
-  <main id="chat-box" class="chat-messages">
-    {''.join(rendered)}
-  </main>
-
-  <form id="chat-form" class="chat-form">
-    <textarea id="message" maxlength="4000" autocomplete="off" placeholder="Start typing and press ENTER to send" required></textarea>
-  </form>
-</div>
-
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-<script>
-const box = document.getElementById("chat-box");
-const form = document.getElementById("chat-form");
-const input = document.getElementById("message");
-const socket = io();
-
-function escapeHtml(value) {{
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}}
-
-function nameColour(name) {{
-  const colours = {{
-    "Charles": "#ff00aa",
-    "Benjamin": "#00aaff",
-    "Rebecca": "#ff4444",
-    "Sophia": "#aa66ff",
-    "Nadia": "#00e0aa",
-  }};
-
-  return colours[name] || "#cccccc";
-}}
-
-function shortTime(value) {{
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value.slice(0, 16);
-
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const hour = String(date.getHours()).padStart(2, "0");
-  const minute = String(date.getMinutes()).padStart(2, "0");
-
-  return `${{day}}/${{month}} ${{hour}}:${{minute}}`;
-}}
-
-function addMessage(msg) {{
-  const div = document.createElement("div");
-  div.className = "message";
-  div.dataset.id = msg.id;
-  div.innerHTML = `
-    <div class="message-meta">
-      <span class="message-name" style="color: ${{nameColour(msg.display_name)}}">${{escapeHtml(msg.display_name)}}</span>
-      <span class="message-time">${{escapeHtml(shortTime(msg.created_at))}}</span>
-    </div>
-    <div class="message-body">${{escapeHtml(msg.body)}}</div>
-  `;
-  box.appendChild(div);
-  box.scrollTop = box.scrollHeight;
-}}
-
-function resizeInput() {{
-  input.style.height = "auto";
-  input.style.height = Math.min(input.scrollHeight, 130) + "px";
-}}
-
-form.addEventListener("submit", function(e) {{
-  e.preventDefault();
-
-  const body = input.value.trim();
-  if (!body) return;
-
-  socket.emit("send_message", {{ body }});
-  input.value = "";
-  resizeInput();
-  input.focus();
-}});
-
-input.addEventListener("input", resizeInput);
-
-input.addEventListener("keydown", function(e) {{
-  if (e.key === "Enter" && !e.shiftKey) {{
-    e.preventDefault();
-    form.requestSubmit();
-  }}
-}});
-
-socket.on("new_message", function(msg) {{
-  addMessage(msg);
-}});
-
-box.scrollTop = box.scrollHeight;
-input.focus();
-</script>
-</body>
-</html>"""
-
-and ensure that it uses live messaging, so people don't have to refresh.
-
-todo: maybe fix the topbar so that it works on mobile better. maybe make it into a dropdown
+todo: build a media viewer app - not started, doesn't exist yet.

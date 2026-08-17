@@ -3,9 +3,14 @@ import subprocess
 from .config import WORKSPACES, GIT_ROOT, GIT_HOST, GIT_SSH_USER
 
 
-def path(group_slug, app, workspace_name):
+def root(group_slug, app, workspace_name):
 
     return WORKSPACES / group_slug / app / workspace_name
+
+
+def path(group_slug, app, workspace_name):
+
+    return root(group_slug, app, workspace_name) / "documents"
 
 
 def bare_repo_path(group_slug, app, workspace_name):
