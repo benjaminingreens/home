@@ -1,10 +1,20 @@
+--- app todos ---
+
 todo: chat - add live messaging (websockets/socket.io) so people don't have to refresh to see new messages. visual redesign (log-style layout, coloured usernames via tag_color, growing textarea, display_time) already shipped - this is just the realtime transport piece. note: this means moving off sync gunicorn workers (e.g. -k eventlet), a real deploy/infra change, not just app code.
 
 todo: topbar on mobile - check whether the app/group/workspace menu redesign (full-screen overlay menus, live search) already covers this well enough, or if a dropdown-style treatment is still specifically wanted.
 
 todo: interactive/clickable help - _help.html command list items should be clickable and fill the query box (with the <placeholder> part pre-selected so typing overwrites just that part), instead of being plain unclickable text. not yet built.
 
-todo: file editor as its own app ("Editor") - currently lives inside Ark's file view (apps/ark/templates/file.html). raised as a maybe; would need its own workspace/permission model since access control currently rides on Ark's membership checks. not committed to, just an open idea.
+todo: file editor as its own app ("Editor"). currently lives inside Ark's file view (apps/ark/templates/file.html). committed to doing this, not just an idea - would need its own workspace/permission model since access control currently rides on Ark's membership checks. depends somewhat on the Files rename below (phase 3), since a standalone editor is most useful once there's a generic Files app to open arbitrary files from. also where live markdown rendering (see below) would most naturally live.
+
+todo: live markdown rendering for notes/files, instead of plain text only. most natural home is the editor app above rather than bolting it onto Ark's current file view.
+
+todo: download option for files in homeapp - let a user download the file they're viewing (Ark file view / Documents / eventual Files/editor) instead of only being able to view/edit it in-browser.
+
+todo: gantt view for todos - homeapp/ark doesn't currently carry enough data to drive one properly; timescales are defaulted purely from priority (!) today. would need real start/duration data - ark already has % (deadline) and >/< (evnt start/end), but todos have no start-date concept yet, so this likely needs a new metadata symbol or convention before a gantt view is possible.
+
+todo: per-group app installs - let different groups enable/disable which apps they have available, rather than every group getting every app by default.
 
 --- homeapp file-structure redesign (multi-phase) ---
 
@@ -16,7 +26,11 @@ phase 2: SCRAPPED (2026-08-18). Considered redesigning ark to drop the note/todo
 
   vendored ark (apps/ark/vendor, submodule of benjaminingreens/ark.git) and the real upstream repo at /home/benjamin/ark need no changes as a result of this decision - phase 2 never got past planning, no code was touched.
 
-phase 3: rename Documents -> Files. generic display only (no ark-specific tag/record parsing baked in - that stays inside the dedicated ark app, which remains the place for an ark-focused view). browses documents/ + media/ branches. basic unix-like commands only (browse/filter/search, maybe rename/move/delete) - no shell-style invocation of other apps' commands from inside files; that stays via HOME's normal app-switcher, to avoid files needing per-app awareness.
+phase 3 (NEXT, committed to): rename Documents -> Files. generic display only (no ark-specific tag/record parsing baked in - that stays inside the dedicated ark app, which remains the place for an ark-focused view). browses documents/ + media/ branches. basic unix-like commands only (browse/filter/search, maybe rename/move/delete) - no shell-style invocation of other apps' commands from inside files; that stays via HOME's normal app-switcher, to avoid files needing per-app awareness. the standalone editor app and the media viewer app (below) both build on top of this.
+
+todo: build a media viewer app - opens files under a workspace's media/ branch, launched from Files (phase 3) the same way the editor app will be. not started, doesn't exist yet.
+
+--- open decisions / questions ---
 
 open decision: sync mechanism for media/ - git is a poor fit for binary media (no meaningful diff/merge, full-history bloat without LFS). leaning toward a simpler rsync/syncthing-style whole-file mirror (no history) instead of git, but not decided or designed yet.
 
@@ -24,4 +38,5 @@ open decision: sync approach for appdata/ - likely needs a per-app answer rather
 
 open question: chat currently stores data at HOME_DATA_DIR/chat/<group_id>.txt - scoped to group, not workspace. doesn't cleanly fit "one appdata per workspace" without deciding what happens when a group has multiple workspaces. not resolved, chat not moved yet.
 
-todo: build a media viewer app - not started, doesn't exist yet.
+open question: file editing permissions - even within a group, can anyone edit any file, or is there a narrower per-file edit permission (e.g. assignee-only)? assignee (@) is an ark metadata concept though, so a permission model built on it doesn't obviously generalise once not every file is an ark file (see file-structure redesign above). related to the editor-as-its-own-app todo above, which already flagged needing a real permission model beyond today's ark-membership-only access control.
+
