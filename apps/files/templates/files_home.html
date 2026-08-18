@@ -64,8 +64,7 @@
 <a class="record-card" href="{{ entry.href }}">
 
 <div class="record-head">
-<span class="record-type record-type-{{ 'dir' if entry.is_dir else 'file' }}">{{ 'dir' if entry.is_dir else 'file' }}</span>
-<span class="record-title">{{ entry.name }}{% if entry.is_dir %}/{% endif %}</span>
+<span class="record-title record-type-{{ 'dir' if entry.is_dir else 'file' }}">{{ entry.name }}{% if entry.is_dir %}/{% endif %}</span>
 </div>
 
 {% if is_search %}

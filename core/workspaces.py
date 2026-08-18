@@ -9,8 +9,13 @@ def root(group_slug, app, workspace_name):
 
 
 def path(group_slug, app, workspace_name):
+    """Where an app's user-facing data actually lives on disk: not the
+    workspace root itself, but a folder inside it named after the app -
+    so if a workspace root is ever shared by more than one app's data,
+    each app's files stay self-namespaced instead of getting dumped
+    together in one generically-named bucket."""
 
-    return root(group_slug, app, workspace_name) / "documents"
+    return root(group_slug, app, workspace_name) / app
 
 
 def bare_repo_path(group_slug, app, workspace_name):

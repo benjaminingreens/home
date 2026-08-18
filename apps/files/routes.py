@@ -34,7 +34,7 @@ def safe_path(workspace, relpath):
     """Resolves relpath under workspace, mirroring apps.ark.routes'
     safe_file containment check, plus a guard Files specifically needs:
     reject any dotfile/dir segment (.ark, .git, any future dotfile) -
-    those live directly inside the same documents/ root Files browses,
+    those live directly inside the same per-app data root Files browses,
     and must never be listed, opened, or mutated by a generic browser."""
 
     relpath = (relpath or "").strip().strip("/")
@@ -276,6 +276,16 @@ def browse():
 
     if not is_search:
         entries = entry_links(list_dir(workspace, cwd), record["id"], cwd)
+
+        if cwd:
+            parent = cwd.rsplit("/", 1)[0] if "/" in cwd else ""
+            entries = [{
+                "name": "..",
+                "relpath": parent,
+                "is_dir": True,
+                "size": None,
+                "href": url_for("files.browse", workspace=record["id"], path=parent),
+            }] + entries
 
     return render_template(
         "files_home.html",

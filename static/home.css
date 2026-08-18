@@ -586,12 +586,14 @@ body.editing #field {
     color: #ff8f8f;
 }
 
-.record-type-dir {
+.record-title.record-type-dir {
     color: #f2d94e;
+    font-weight: bold;
 }
 
-.record-type-file {
-    color: var(--fg-faint, #555);
+.record-title.record-type-file {
+    color: var(--fg-color, #fff);
+    font-weight: normal;
 }
 
 #breadcrumbs {
