@@ -1,24 +1,93 @@
---- app todos ---
+notes on this file: priority = how breaking the change is x how central it is to homeapp/ark's philosophy (plain text, local-first, "the data is the index", generic files, minimal/command-driven apps).
+  1 = breaking (incompatible with current data/workspaces) AND philosophy-critical
+  2 = breaking, not philosophy-critical
+  3 = non-breaking, but philosophy-critical
+  4 = neither
+not everything below is committed to - several are half-formed ideas, marked as such. see issues.txt for reports of current behaviour being wrong, as opposed to new work.
 
-todo: chat - add live messaging (websockets/socket.io) so people don't have to refresh to see new messages. visual redesign (log-style layout, coloured usernames via tag_color, growing textarea, display_time) already shipped - this is just the realtime transport piece. note: this means moving off sync gunicorn workers (e.g. -k eventlet), a real deploy/infra change, not just app code.
+--- priority 1 ---
 
-todo: topbar on mobile - check whether the app/group/workspace menu redesign (full-screen overlay menus, live search) already covers this well enough, or if a dropdown-style treatment is still specifically wanted.
+todo: local-first storage architecture for media/ and appdata/. currently only documents/ (ark's data) is git-synced; media/ and appdata/ aren't touched by anything yet. open sub-questions:
+  - sync mechanism for media/ - git is a poor fit for binary media (no meaningful diff/merge, full-history bloat without LFS). leaning toward a simpler rsync/syncthing-style whole-file mirror instead, not designed yet.
+  - sync approach for appdata/ - likely per-app rather than universal (e.g. chat is probably server-authoritative, not offline-synced like documents/media).
+  - chat specifically stores data at HOME_DATA_DIR/chat/<group_id>.txt today - scoped to group, not workspace - doesn't fit "one appdata per workspace" without deciding what happens when a group has multiple workspaces.
+  - whether all app data (not just chat) should live inside a workspace's userspace, or apps can keep separate siphoned-off storage - undecided.
+  - the underlying goal: a fully local (offline) version of homeapp should be possible, with all of a workspace's data (documents/media/appdata) sitting together in one place rather than scattered. this is the "why" behind all of the above.
+priority 1 because any real answer here changes where data physically lives on disk (breaking for anything already written), and local-first is core to what homeapp is.
 
-todo: interactive/clickable help - _help.html command list items should be clickable and fill the query box (with the <placeholder> part pre-selected so typing overwrites just that part), instead of being plain unclickable text. not yet built.
+--- priority 2 ---
 
-todo: file editor as its own app ("Editor"). currently lives inside Ark's file view (apps/ark/templates/file.html). committed to doing this, not just an idea - would need its own workspace/permission model since access control currently rides on Ark's membership checks. depends somewhat on the Files rename below (phase 3), since a standalone editor is most useful once there's a generic Files app to open arbitrary files from. also where live markdown rendering (see below) would most naturally live.
+(nothing logged yet that's both breaking and philosophy-agnostic)
 
-todo: live markdown rendering for notes/files, instead of plain text only. most natural home is the editor app above rather than bolting it onto Ark's current file view.
+--- priority 3 ---
 
-todo: download option for files in homeapp - let a user download the file they're viewing (Ark file view / Documents / eventual Files/editor) instead of only being able to view/edit it in-browser.
+todo: support file types beyond ark's .txt in a workspace - .md, .py, .tex, etc. three ideas floated, not decided between:
+  1. ark stays .txt/note-todo-evnt-only; other file types just live in the workspace and get browsed generically (by Files, phase 3 below) without ark parsing them.
+  2. ark extracts records from any text file and leaves the rest alone, so e.g. a .py file could carry an embedded todo record inline.
+  3. go further and put light structured metadata into any file type, so everything - not just ark files - can live flat and be searched by tag.
+  ties directly into phase 3 below and the "how does Documents interpret Ark's data without becoming Ark-coupled" question that was explicitly paused earlier.
 
-todo: gantt view for todos - homeapp/ark doesn't currently carry enough data to drive one properly; timescales are defaulted purely from priority (!) today. would need real start/duration data - ark already has % (deadline) and >/< (evnt start/end), but todos have no start-date concept yet, so this likely needs a new metadata symbol or convention before a gantt view is possible.
+todo: basic comment-like syntax convention for plain text files, in service of the above.
 
-todo: per-group app installs - let different groups enable/disable which apps they have available, rather than every group getting every app by default.
+todo: rename Documents -> Files (phase 3 of the file-structure redesign; see history section below for phase 1/2). generic display only, no ark-specific parsing - that stays in the dedicated ark app. browses documents/ + media/. basic unix-like commands only (browse/filter/search, maybe rename/move/delete) - no shell-style invocation of other apps.
 
---- homeapp file-structure redesign (multi-phase) ---
+todo: file editor as its own app ("Editor"), out of Ark's file view (apps/ark/templates/file.html). needs its own permission model - access control currently rides on Ark's group membership, which won't generalise once not every file is an ark file (see file editing permissions, below). most natural place for markdown rendering (priority 4) if that happens.
 
-phase 1 (DONE, 2026-08-17): inserted documents/media/appdata as three sibling branches inside each workspace. core/workspaces.py::path() now returns <root>/documents instead of <root> itself; new root() gives the true workspace root. ark keeps working exactly as it did before - same .txt extension, same note/todo/evnt dirs, vendored binary completely untouched - just nested one level deeper on disk. real server data migrates automatically and idempotently on server startup (core/storage.py::_migrate_documents_layout(), same "check current shape, fix if needed, run every boot" convention as core/db.py's own schema fixups) - no manual script to run. media/ and appdata/ are not eagerly created (nothing writes to them yet) and are not git-tracked - see the two "open decision" sync items below, which are follow-ups, not blockers. verified: migration idempotency + empty-workspace handling, full Flask-test-client flow (new workspace creation, save, lock, documents scan, enable_git puts .git inside documents/ correctly), and a real dev-server run against a seeded old-layout directory - zero errors, migration fired correctly on real startup.
+todo: file editing permissions - even within a group, should anyone be able to edit any file, or is there a narrower per-file permission (e.g. assignee-only)? assignee (@) is an ark metadata concept though, so it won't obviously generalise past ark files. blocks a real permission model for the editor app above.
+
+todo: diffs and edit history for text files - show what changed and by whom, and let people look back through a file's history. documents/ is already git-backed per workspace, so this is plausibly "just" surfacing existing git history in the UI rather than new infrastructure.
+
+todo: a unix-shell-style app for a workspace, connected to a separate "playground" for running code - distinct from Files (phase 3), which stays deliberately non-shell (see phase 3 notes for why Files doesn't invoke other apps' commands).
+
+todo: plugin layer / mechanism for people to write and install their own apps, with real security boundaries around them. big, not scoped yet.
+
+todo: search within Documents. directly tests "the data is the index" - a real search has to stay a live scan over tagged content rather than a background index, to stay consistent with ark's philosophy (see the phase 2 scrapped note in the history section for why an index isn't on the table).
+
+todo: what's the underlying interaction model for command-style apps (Documents in particular)? results currently show before any input in some places; help currently sits next to results rather than being the result of asking for help. these should follow one consistent rule instead of being decided per-screen. same underlying question, folded in here: add an 'all' command to Documents to show everything without needing a tag first; make the existing "interactive/clickable help" idea (_help.html command list becoming clickable) actually express that rule, not just be clickable text.
+
+todo: let people see workspaces from more than one group at once, instead of one workspace at a time. related to the group/workspace switcher problems logged in issues.txt.
+
+--- priority 4 ---
+
+todo: chat - add live messaging (websockets/socket.io) so people don't have to refresh. visual redesign already shipped (log-style layout, coloured usernames, growing textarea, display_time) - this is just the realtime transport. means moving off sync gunicorn workers (e.g. -k eventlet) - a real infra change. issues.txt has the current "not receiving live" report confirming this is still outstanding.
+
+todo: build a media viewer app, opening files under a workspace's media/ branch - launched from Files (phase 3) the same way the editor app will be.
+
+todo: build a calendar app, linking to a workspace's ark evnt records.
+
+todo: build a gantt view for todos - needs real start/duration data first; today timescales default purely off priority (!), and todos have no start-date concept. ark already has % (deadline) and >/< (evnt start/end).
+
+todo: build a "postbox" app. not scoped.
+
+todo: a suite of office-style apps. not scoped, and in real tension with homeapp's plain-text/minimal philosophy - worth being honest about that before sinking time into it.
+
+todo: markdown rendering for notes/files - most natural home is the editor app (priority 3) once it exists.
+
+todo: download option for files, wherever they're viewed (Ark file view / Documents / eventual Files+editor).
+
+todo: expose .arkrc settings in the Settings app, in an intuitive way - not just an editable dotfile. not scoped yet.
+
+todo: label some apps as only available in multi-person groups, or not - undecided if this is even wanted.
+
+todo: per-group app installs - let different groups enable/disable which apps they have available.
+
+todo: topbar/mobile - check whether the app/group/workspace menu redesign (full-screen overlay menus, live search) already covers this, or a dropdown treatment is still wanted. see issues.txt for concrete problems with the current switcher.
+
+todo: option to fully hide the topbar - not by default, unsure how.
+
+todo: command history in the query box via up-arrow, shell-style.
+
+todo: allow closing the output of a command, once shown.
+
+todo: show the server address on the login page - unsure if actually wanted.
+
+todo: chat - option to remove the topbar in chat specifically - unsure if actually wanted.
+
+todo: revisit account "age" - unclear what this means yet (account age display? inactivity handling?), needs clarifying before it's actionable.
+
+--- history (file-structure redesign) ---
+
+phase 1 (DONE, 2026-08-17): inserted documents/media/appdata as three sibling branches inside each workspace. core/workspaces.py::path() now returns <root>/documents instead of <root> itself; new root() gives the true workspace root. ark keeps working exactly as it did before - same .txt extension, same note/todo/evnt dirs, vendored binary completely untouched - just nested one level deeper on disk. real server data migrates automatically and idempotently on server startup (core/storage.py::_migrate_documents_layout(), same "check current shape, fix if needed, run every boot" convention as core/db.py's own schema fixups) - no manual script to run. media/ and appdata/ are not eagerly created (nothing writes to them yet) and are not git-tracked - see priority 1 above. verified: migration idempotency + empty-workspace handling, full Flask-test-client flow (new workspace creation, save, lock, documents scan, enable_git puts .git inside documents/ correctly), and a real dev-server run against a seeded old-layout directory - zero errors, migration fired correctly on real startup.
 
 phase 2: SCRAPPED (2026-08-18). Considered redesigning ark to drop the note/todo/evnt/yyyy/mm structure in favour of one flat, .arkrc-configurable output folder with date-first batch filenames. Rejected after realising two things: (1) most notes are multiline, and multiline notes each get their own file rather than being batched (only oneline records get consolidated) - so "flat" would mean thousands of individual files in one folder over time, not a small number of batches, which is exactly the "ever-growing flat folder" problem the redesign was trying to avoid; (2) type-as-directory (note/todo/evnt) and date-as-directory (yyyy/mm) are separate axes that got conflated during the design discussion - only the type axis was actually in tension with ark's "data is the index" philosophy, and a full flat layout traded that problem for a worse one (bulk human/terminal browsability) without a real win.
 
@@ -26,17 +95,4 @@ phase 2: SCRAPPED (2026-08-18). Considered redesigning ark to drop the note/todo
 
   vendored ark (apps/ark/vendor, submodule of benjaminingreens/ark.git) and the real upstream repo at /home/benjamin/ark need no changes as a result of this decision - phase 2 never got past planning, no code was touched.
 
-phase 3 (NEXT, committed to): rename Documents -> Files. generic display only (no ark-specific tag/record parsing baked in - that stays inside the dedicated ark app, which remains the place for an ark-focused view). browses documents/ + media/ branches. basic unix-like commands only (browse/filter/search, maybe rename/move/delete) - no shell-style invocation of other apps' commands from inside files; that stays via HOME's normal app-switcher, to avoid files needing per-app awareness. the standalone editor app and the media viewer app (below) both build on top of this.
-
-todo: build a media viewer app - opens files under a workspace's media/ branch, launched from Files (phase 3) the same way the editor app will be. not started, doesn't exist yet.
-
---- open decisions / questions ---
-
-open decision: sync mechanism for media/ - git is a poor fit for binary media (no meaningful diff/merge, full-history bloat without LFS). leaning toward a simpler rsync/syncthing-style whole-file mirror (no history) instead of git, but not decided or designed yet.
-
-open decision: sync approach for appdata/ - likely needs a per-app answer rather than one universal mechanism. e.g. chat is probably server-authoritative (no real local-first copy to reconcile) rather than needing the same offline-sync treatment as documents/media. not decided.
-
-open question: chat currently stores data at HOME_DATA_DIR/chat/<group_id>.txt - scoped to group, not workspace. doesn't cleanly fit "one appdata per workspace" without deciding what happens when a group has multiple workspaces. not resolved, chat not moved yet.
-
-open question: file editing permissions - even within a group, can anyone edit any file, or is there a narrower per-file edit permission (e.g. assignee-only)? assignee (@) is an ark metadata concept though, so a permission model built on it doesn't obviously generalise once not every file is an ark file (see file-structure redesign above). related to the editor-as-its-own-app todo above, which already flagged needing a real permission model beyond today's ark-membership-only access control.
-
+phase 3 is now tracked as a priority 3 todo above, not repeated here.

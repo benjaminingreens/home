@@ -1,0 +1,40 @@
+homeapp issues - reports of current behaviour being wrong, broken, or confusing. see todos.txt for new work/features, organised by priority.
+
+--- navigation / topbar ---
+
+issue: app/group/workspace switcher isn't quite working:
+  1. sometimes runs out of space.
+  2. the workspace menu shows groups in some apps too, making the separate group selector redundant.
+  needs a more elegant solution than tweaking the current menu - see the related todos (multi-group workspace view, topbar/mobile) in todos.txt.
+
+--- documents / search ---
+
+issue: still getting weird/wrong results and files showing up in Documents; some notes and todos still appearing weirdly. not yet root-caused.
+
+issue: tab (to cycle through tag-filtered results) doesn't behave correctly when multiple tags share the same entry results.
+
+issue: worth reconfirming default sort order for Documents vs Ark notes is still working as designed (Documents gets a default recency sort computed from file mtime; Ark itself is never given a default sort, sorting stays command-driven) - flagged again, may just need reconfirming rather than fixing.
+
+--- editor ---
+
+issue: cursor bug still appearing (no further detail yet).
+
+issue: top of the text editor shows the filepath - should just be the text, no filepath chrome.
+
+issue: syntax/text highlighting not always working.
+
+issue: screen doesn't track the cursor properly during "modular" editing (unclear exactly what this refers to - needs a concrete repro).
+
+issue: cursor should stay roughly central on screen while typing, not pinned to the bottom.
+
+issue: line spacing doesn't reflect the file's actual plain text the way e.g. vim does.
+
+--- chat ---
+
+issue: on mobile, the input is lost/dropped when the on-screen keyboard closes.
+
+issue: chat is not receiving messages live yet - expected, the live-messaging todo in todos.txt hasn't been built, this just confirms it's still outstanding.
+
+--- settings ---
+
+issue: review how Settings currently presents itself - not a specific bug, just flagged as worth a pass. relatedly, .arkrc settings should be exposed there in an intuitive way (see todos.txt).
