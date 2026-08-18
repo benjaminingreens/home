@@ -596,6 +596,18 @@ body.editing #field {
     font-weight: normal;
 }
 
+#output {
+    max-height: 320px;
+    overflow: auto;
+    word-break: break-word;
+    background: rgba(127, 127, 127, 0.08);
+    border: 1px solid var(--border-color, #222);
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: var(--section-gap);
+    font-size: 0.9em;
+}
+
 #breadcrumbs {
     margin-top: var(--section-gap);
     color: var(--fg-muted, #888);

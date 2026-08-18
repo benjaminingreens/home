@@ -1,3 +1,4 @@
+from pathlib import Path
 from urllib.parse import urlencode
 
 from flask import render_template, request, redirect, abort
@@ -19,7 +20,10 @@ def editor_workspace(workspace_id):
     Files, anything else) must hand it an explicit workspace_id. Resolved
     off the workspace row's own `app` column rather than a hardcoded
     "ark", so this stays reusable for any future app's workspaces, not
-    just Ark's."""
+    just Ark's. Returns the true workspace root (matching Files, which
+    shares the same underlying data), not just the app's own data folder
+    one level below it - a file= path is relative to that same root
+    everywhere a caller links into Editor from."""
 
     user = current_user()
 
@@ -31,17 +35,36 @@ def editor_workspace(workspace_id):
     if not record or not core_groups.require_active_member(user["id"], record["group_id"]):
         abort(403)
 
-    workspace = core_workspaces.path(record["group_slug"], record["app"], record["name"])
+    workspace = core_workspaces.root(record["group_slug"], record["app"], record["name"])
 
     return user, workspace, record
 
 
-def safe_file(workspace, relpath):
-    relpath = relpath.strip()
-    target = (workspace / relpath).resolve()
+def git_dir_for(record):
+    """The actual git repo root (the app's own data folder) - separate
+    from editor_workspace()'s wider workspace root, since auto_sync only
+    knows how to operate on a real git working directory, not an
+    arbitrary folder one level above it."""
 
-    if workspace.resolve() not in target.parents and target != workspace.resolve():
+    return core_workspaces.path(record["group_slug"], record["app"], record["name"])
+
+
+def safe_file(workspace, relpath):
+    """Mirrors apps.files.routes.safe_path's containment + dotfile guard -
+    Editor's root is now the true workspace root (see editor_workspace()),
+    so without this, a crafted file= could reach into an app's own .ark/
+    or .git/ internals the same way an unguarded Files browse could."""
+
+    relpath = (relpath or "").strip().strip("/")
+    target = (workspace / relpath).resolve() if relpath else workspace.resolve()
+    root = workspace.resolve()
+
+    if root not in target.parents and target != root:
         abort(403)
+
+    for part in (Path(relpath).parts if relpath else []):
+        if part.startswith("."):
+            abort(403)
 
     return target
 
@@ -59,7 +82,7 @@ def view():
     if not user:
         return redirect("/login")
 
-    auto_sync(workspace, record["id"])
+    auto_sync(git_dir_for(record), record["id"])
     conflict = sync_state.is_conflicted(record["id"])
 
     target = safe_file(workspace, file_path)
@@ -126,7 +149,7 @@ def save():
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content, encoding="utf-8")
 
-    auto_sync(workspace, record["id"], force=True)
+    auto_sync(git_dir_for(record), record["id"], force=True)
 
     qs = urlencode({
         "file": relpath,

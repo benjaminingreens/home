@@ -16,7 +16,7 @@
 <textarea
     id="query"
     name="query"
-    placeholder="mkdir, touch, mv, rm, or search filenames..."
+    placeholder="cd, ls, cat, grep, find, mkdir, touch, mv, rm..."
     spellcheck="false"
     autocomplete="off"
     autofocus></textarea>
@@ -36,6 +36,12 @@
 {% if message %}
 
 <div class="message toast{% if is_error %} error{% endif %}">{{ message }}</div>
+
+{% endif %}
+
+{% if command_output is not none %}
+
+<pre id="output">{{ command_output }}</pre>
 
 {% endif %}
 
@@ -69,6 +75,10 @@
 
 {% if is_search %}
 <div class="record-path">{{ entry.relpath }}</div>
+{% endif %}
+
+{% if entry.detail %}
+<div class="record-path">{{ entry.detail }}</div>
 {% endif %}
 
 </a>

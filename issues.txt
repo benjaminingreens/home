@@ -29,6 +29,10 @@ issue: cursor should stay roughly central on screen while typing, not pinned to 
 
 issue: line spacing doesn't reflect the file's actual plain text the way e.g. vim does.
 
+--- files / ark ---
+
+issue: files and ark feel too separate compared to using ark from a real terminal, where running ark commands and browsing ark's (and everything else's) files happens in the exact same place, at the same time. in homeapp today, running ark commands only happens in the ark app; browsing ark's files (and everything else in the workspace) only happens in files. merging the two would effectively make two apps into one, against homeapp's minimal/single-purpose-app philosophy - but keeping them apart loses the single-terminal feel a real shell gives you. raised 2026-08-18, no resolution yet - unclear whether the fix is UI (some way to move between them without losing context/place) or something deeper about how the two apps relate.
+
 --- chat ---
 
 issue: on mobile, the input is lost/dropped when the on-screen keyboard closes.

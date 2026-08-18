@@ -60,7 +60,9 @@
 
 {% for record in records %}
 
-<a class="record-card" href="/apps/editor/?file={{ record.path }}&workspace={{ active_workspace_id }}&app=Ark&home=/apps/ark/&find={{ (record.preview or record.title or '') | urlencode }}">
+{# record.path is relative to ark's own data folder (core.workspaces.path()) - Editor's
+   root is the workspace root one level above that, so it needs the "ark/" prefix. #}
+<a class="record-card" href="/apps/editor/?file=ark/{{ record.path }}&workspace={{ active_workspace_id }}&app=Ark&home=/apps/ark/&find={{ (record.preview or record.title or '') | urlencode }}">
 
 <div class="record-head">
 <span class="record-type record-type-{{ record.type }}">{{ record.type }}</span>
