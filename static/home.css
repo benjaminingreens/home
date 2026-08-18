@@ -191,25 +191,11 @@ button {
     font-style: italic;
 }
 
-.bottombar {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 10px;
-    margin-top: var(--section-gap);
-    padding-top: 20px;
-    border-top: 1px solid var(--border-color, #222);
-    font-size: 2rem;
-    font-style: italic;
-}
-
-body.editor .topbar,
-body.editor .bottombar {
+body.editor .topbar {
     display: none;
 }
 
-.topbar-seg,
-.bottombar-switcher {
+.topbar-seg {
     border: none;
     background: none;
     padding: 0;
@@ -224,17 +210,11 @@ body.editor .bottombar {
     color: #7fe28a;
 }
 
-.bottombar-user {
-    color: var(--fg-muted, #888);
-    font-style: italic;
-}
-
-.bottombar-switcher {
+.topbar-switcher {
     color: var(--fg-color, #fff);
 }
 
-.topbar-seg:hover,
-.bottombar-switcher:hover {
+.topbar-seg:hover {
     text-decoration: underline;
 }
 
@@ -338,12 +318,38 @@ body.editor .bottombar {
     border-bottom: none;
 }
 
-.menu-stage.hidden {
+.menu-group {
+    border-bottom: 1px solid #222;
+}
+
+.menu-group.hidden {
     display: none;
 }
 
-.menu-back {
+.menu-group summary {
+    list-style: none;
+    cursor: pointer;
+}
+
+.menu-group summary::-webkit-details-marker {
+    display: none;
+}
+
+.menu-group-summary {
+    border-bottom: none;
+}
+
+.menu-group-summary::before {
+    content: "+ ";
     color: var(--fg-muted, #888);
+}
+
+.menu-group[open] .menu-group-summary::before {
+    content: "\2212 ";
+}
+
+.menu-group-workspaces .menu-item {
+    padding-left: 24px;
 }
 
 .menu-close {
@@ -844,8 +850,7 @@ body.chat {
     flex-direction: column;
 }
 
-body.chat .topbar,
-body.chat .bottombar {
+body.chat .topbar {
     flex: 0 0 auto;
 }
 
@@ -1144,8 +1149,7 @@ body.chat .bottombar {
         --section-gap: 32px;
     }
 
-    .topbar,
-    .bottombar {
+    .topbar {
         gap: 8px;
         font-size: 1.3rem;
     }

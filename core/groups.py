@@ -271,18 +271,18 @@ def list_multiview_selection(user_id):
     return [row["workspace_id"] for row in rows]
 
 
-def set_multiview_selection(user_id, workspace_id, selected):
+def set_multiview_extras(user_id, workspace_ids):
+    """Replaces a user's whole multiview pin set in one go - the topbar's
+    switcher menu accumulates checkbox changes client-side and only
+    submits once, on close, rather than one request per checkbox (see
+    apps.ark.routes.set_multiview)."""
+
     with connect() as con:
-        if selected:
-            con.execute(
-                "INSERT OR IGNORE INTO multiview_selection (user_id, workspace_id) VALUES (?, ?)",
-                (user_id, workspace_id),
-            )
-        else:
-            con.execute(
-                "DELETE FROM multiview_selection WHERE user_id=? AND workspace_id=?",
-                (user_id, workspace_id),
-            )
+        con.execute("DELETE FROM multiview_selection WHERE user_id=?", (user_id,))
+        con.executemany(
+            "INSERT INTO multiview_selection (user_id, workspace_id) VALUES (?, ?)",
+            [(user_id, workspace_id) for workspace_id in workspace_ids],
+        )
 
 
 def set_active_workspace(user_id, workspace_id):

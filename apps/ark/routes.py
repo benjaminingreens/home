@@ -284,30 +284,46 @@ def home():
 
 @bp.post("/workspaces")
 def switch_workspace():
-    """The bottom bar's group/workspace switcher posts here, from any
-    app's page (see inject_topbar_context) - creating workspaces lives in
+    """The topbar's single-select switcher posts here, from any app's
+    page (see inject_topbar_context) - creating workspaces lives in
     Settings, next to the group it belongs to; this endpoint only
     switches which existing one is active, then returns to wherever the
-    switch was made from. workspace_id switches to a specific existing
-    workspace (the normal case); group_id is the switcher's fallback for
-    a group with no workspace yet, lazily creating its 'default' one -
-    same lazy-creation convention as a personal group's own default
-    workspace (see resolve_active_workspace)."""
+    switch was made from."""
 
     user = current_user()
 
     if not user:
         return redirect("/login")
 
-    workspace_id = request.form.get("workspace_id")
-    group_id = request.form.get("group_id")
+    try:
+        core_groups.set_active_workspace(user["id"], int(request.form.get("workspace_id", 0)))
+    except (ValueError, PermissionError):
+        pass
+
+    return redirect(request.referrer or "/apps/ark/")
+
+
+@bp.get("/workspaces/new")
+def new_default_workspace():
+    """The switcher's fallback for a group with no workspace yet (a
+    brand-new shared group has none until someone explicitly creates
+    one) - lazily creates and switches to its 'default' workspace, same
+    convention as a personal group's own default (see
+    resolve_active_workspace). A plain link rather than a form post so it
+    works standalone inside the switcher's accordion, which - for a
+    multiview app - is itself one big form (see set_multiview); nested
+    <form> elements aren't valid HTML."""
+
+    user = current_user()
+
+    if not user:
+        return redirect("/login")
 
     try:
-        if workspace_id:
-            core_groups.set_active_workspace(user["id"], int(workspace_id))
-        elif group_id:
-            record = core_groups.get_or_create_group_default_workspace(int(group_id), "ark", user["id"])
-            core_groups.set_active_workspace(user["id"], record["id"])
+        record = core_groups.get_or_create_group_default_workspace(
+            int(request.args.get("group_id", 0)), "ark", user["id"]
+        )
+        core_groups.set_active_workspace(user["id"], record["id"])
     except (ValueError, PermissionError):
         pass
 
@@ -315,45 +331,48 @@ def switch_workspace():
 
 
 @bp.post("/multiview")
-def toggle_multiview():
-    """The bottom bar's checkbox-style switcher (multiview apps only -
-    see core.apps.load_apps' MULTIVIEW flag) posts here to pin or unpin
-    one extra workspace on top of the active one - see
-    multiview_workspaces() for how the two combine into a query's actual
-    target set.
+def set_multiview():
+    """The topbar switcher's checkbox accordion (multiview apps only -
+    see core.apps.load_apps' MULTIVIEW flag) posts here once, when the
+    menu closes, with every currently-checked workspace_id - not one
+    request per checkbox, so ticking several boxes doesn't reload the
+    page in between (see closeMenus() in _topbar.html).
 
-    Unpinning the active workspace itself promotes another pinned one to
-    active instead (there must always be exactly one active workspace -
-    every other app depends on it), rather than leaving multiview with
-    no primary at all."""
+    The active workspace is always implicitly part of the set; if its
+    box was unchecked, another checked one is promoted to active instead
+    (there must always be exactly one active workspace - every other app
+    depends on it) rather than leaving multiview with no primary at all.
+    Order follows submission order (roughly group-then-workspace DOM
+    order), so the promoted one is whichever checked box comes first."""
 
     user = current_user()
 
     if not user:
         return redirect("/login")
 
-    try:
-        workspace_id = int(request.form.get("workspace_id", 0))
-        selected = request.form.get("selected") == "1"
+    checked_ids = []
+
+    for raw in request.form.getlist("workspace_id"):
+        try:
+            workspace_id = int(raw)
+        except ValueError:
+            continue
+
+        if workspace_id in checked_ids:
+            continue
+
         record = core_groups.get_workspace(workspace_id)
 
-        if not record or not core_groups.require_active_member(user["id"], record["group_id"]):
-            raise PermissionError("not a member of this workspace's group")
+        if record and core_groups.require_active_member(user["id"], record["group_id"]):
+            checked_ids.append(workspace_id)
 
-        if selected:
-            core_groups.set_multiview_selection(user["id"], workspace_id, True)
-        else:
-            core_groups.set_multiview_selection(user["id"], workspace_id, False)
+    active_id = user["active_workspace_id"]
 
-            if workspace_id == user["active_workspace_id"]:
-                remaining = core_groups.list_multiview_selection(user["id"])
+    if checked_ids and active_id not in checked_ids:
+        active_id = checked_ids[0]
+        core_groups.set_active_workspace(user["id"], active_id)
 
-                if remaining:
-                    promoted = remaining[0]
-                    core_groups.set_active_workspace(user["id"], promoted)
-                    core_groups.set_multiview_selection(user["id"], promoted, False)
-    except (ValueError, PermissionError):
-        pass
+    core_groups.set_multiview_extras(user["id"], [wid for wid in checked_ids if wid != active_id])
 
     return redirect(request.referrer or "/apps/ark/")
 

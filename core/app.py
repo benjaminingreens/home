@@ -104,9 +104,9 @@ def inject_topbar_context():
     theme = theme_colors(bg_color)
 
     # Workspace switching is a global concept, not an Ark-only one - every
-    # page's bottom bar shows and can switch it, even pages (Chat,
+    # page's topbar shows and can switch it, even pages (Chat,
     # Settings, the launcher) that never otherwise touch workspaces
-    # directly. The bottom bar's switcher always lists every group/
+    # directly. The topbar's switcher always lists every group/
     # workspace the user has, regardless of which page it's opened from -
     # a route rendering its own view of a *specific* non-active workspace
     # (e.g. Ark opened via a Files link with ?workspace=X) only needs to

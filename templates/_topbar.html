@@ -1,7 +1,11 @@
 {% if current_user_ctx %}
 
+{% set _current_app = (nav_apps | selectattr('name', 'equalto', app_label) | list) %}
+{% set multiview_app = _current_app[0].multiview if _current_app else False %}
+
 <nav class="topbar">
 <button type="button" class="topbar-seg topbar-app" onclick="openMenu('app')">{{ (app_label or "home") | lower }}</button>
+<button type="button" class="topbar-seg topbar-switcher" style="color: {{ current_user_ctx.accent_color }}" onclick="openMenu('workspace')">{% if multiview_app and multiview_selection %}multiple{% else %}{{ current_group.name | lower }}/{{ current_workspace.name | lower }}{% endif %}</button>
 </nav>
 
 <div id="menu-app" class="menu-overlay hidden">
@@ -20,9 +24,149 @@
 
 <div class="menu-footer">
 <a href="/" class="menu-item menu-home">go home</a>
-<a href="/logout" class="menu-item menu-logout">log out of {{ current_user_ctx.username | lower }}</a>
+<a href="/logout" class="menu-item menu-logout">log out</a>
 </div>
 
 </div>
+
+<div id="menu-workspace" class="menu-overlay hidden">
+
+<div class="menu-header">
+<button type="button" class="menu-close" onclick="closeMenus()" aria-label="close menu">&times;</button>
+<div class="menu-title">select workspace</div>
+<input type="text" class="menu-search" placeholder="search..." autocomplete="off" oninput="filterWorkspaceMenu(this.value)">
+</div>
+
+<div class="menu-list">
+
+{% if multiview_app %}<form id="multiview-form" method="post" action="/apps/ark/multiview">{% endif %}
+
+{% for g in user_groups %}
+{% set g_has_extra = (g.workspaces | selectattr('id', 'in', multiview_selection) | list) if multiview_app else [] %}
+<details class="menu-group" data-search="{{ g.name | lower }}"{% if g.id == current_group.id or g_has_extra %} open{% endif %}>
+
+<summary class="menu-item menu-group-summary">{{ g.name | lower }}</summary>
+
+<div class="menu-group-workspaces">
+{% for w in g.workspaces %}
+{% if multiview_app %}
+{% set picked = w.id == active_workspace_id or w.id in multiview_selection %}
+<label class="menu-item menu-toggle{{ ' active' if picked }}" data-search="{{ w.name | lower }}">
+<input type="checkbox" name="workspace_id" value="{{ w.id }}"{{ ' checked' if picked }} onchange="markWorkspaceMenuDirty()">
+{{ w.name | lower }}
+</label>
+{% else %}
+<form method="post" action="/apps/ark/workspaces" class="menu-form">
+<input type="hidden" name="workspace_id" value="{{ w.id }}">
+<button type="submit" class="menu-item{{ ' active' if w.id == active_workspace_id }}" data-search="{{ w.name | lower }}">{{ w.name | lower }}</button>
+</form>
+{% endif %}
+{% endfor %}
+{% if not g.workspaces %}
+<a href="/apps/ark/workspaces/new?group_id={{ g.id }}" class="menu-item" data-search="create default workspace">create default workspace</a>
+{% endif %}
+</div>
+
+</details>
+{% endfor %}
+
+{% if multiview_app %}</form>{% endif %}
+
+</div>
+
+<div class="menu-footer">
+<a href="/" class="menu-item menu-home">go home</a>
+<a href="/logout" class="menu-item menu-logout">log out</a>
+</div>
+
+</div>
+
+<script>
+let workspaceMenuDirty = false;
+
+function markWorkspaceMenuDirty() {
+    workspaceMenuDirty = true;
+}
+
+function openMenu(name) {
+    if (name === 'workspace') {
+        workspaceMenuDirty = false;
+    }
+
+    document.getElementById('menu-' + name).classList.remove('hidden');
+}
+
+function filterMenu(name, token) {
+    token = token.trim().toLowerCase();
+
+    document.querySelectorAll('#menu-' + name + ' .menu-list [data-search]').forEach(function (el) {
+        var match = !token || el.dataset.search.indexOf(token) !== -1;
+        el.classList.toggle('hidden', !match);
+    });
+}
+
+function filterWorkspaceMenu(token) {
+    token = token.trim().toLowerCase();
+
+    document.querySelectorAll('#menu-workspace .menu-group').forEach(function (group) {
+        var groupMatch = !token || group.dataset.search.indexOf(token) !== -1;
+        var anyItemMatch = false;
+
+        group.querySelectorAll('[data-search]').forEach(function (item) {
+            var itemMatch = !token || item.dataset.search.indexOf(token) !== -1;
+            item.classList.toggle('hidden', !(groupMatch || itemMatch));
+            if (itemMatch) anyItemMatch = true;
+        });
+
+        group.classList.toggle('hidden', !!token && !groupMatch && !anyItemMatch);
+
+        if (token && (groupMatch || anyItemMatch)) {
+            group.open = true;
+        }
+    });
+}
+
+function closeMenus() {
+    var workspaceMenu = document.getElementById('menu-workspace');
+    var multiviewForm = document.getElementById('multiview-form');
+
+    // A multiview app's checkboxes accumulate client-side (see
+    // markWorkspaceMenuDirty) rather than posting on every click, so the
+    // accumulated change only actually applies here, once, on close -
+    // not at all if nothing was touched.
+    if (workspaceMenu && !workspaceMenu.classList.contains('hidden') && multiviewForm && workspaceMenuDirty) {
+        multiviewForm.submit();
+        return;
+    }
+
+    document.querySelectorAll('.menu-overlay').forEach(function (el) {
+        el.classList.add('hidden');
+    });
+
+    // Opening a menu blurs the query box (focus moves to the button that
+    // opened it) - closing it should give focus back, or the cursor's
+    // custom mirror is left stuck in its unfocused/invisible state even
+    // though the terminal screen behind the menu never actually changed.
+    var q = document.getElementById('query');
+    var f = document.getElementById('field');
+
+    if (q && f) {
+        q.focus();
+        f.classList.add('focused');
+
+        if (typeof renderMirror === 'function') {
+            renderMirror();
+        }
+    }
+}
+document.querySelectorAll('.menu-overlay').forEach(function (el) {
+    el.addEventListener('click', function (e) {
+        if (e.target === el) closeMenus();
+    });
+});
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeMenus();
+});
+</script>
 
 {% endif %}
