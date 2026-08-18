@@ -1,5 +1,5 @@
 import shlex
-import subprocess
+import shutil
 from pathlib import Path
 
 from flask import render_template, request, redirect, abort, url_for
@@ -13,18 +13,12 @@ from apps.ark.routes import ark_workspace
 from apps.ark.runner import auto_sync, is_git_linked
 
 FILES_HELP_INTRO = (
-    "files works like a shell for this workspace - click to browse, or "
-    "type real commands into the box below. cd/ls/pwd/cat/grep/find are "
-    "read-only; mkdir/touch/mv/rm change things."
+    "files browses this workspace - click to navigate, or type a command "
+    "below for the few things clicking can't do."
 )
 
 FILES_HELP = [
     ("cd PATH", "change directory (blank = workspace root)"),
-    ("ls [PATH]", "list a directory - same as clicking, here for completeness"),
-    ("pwd", "show the current path"),
-    ("cat FILE", "print a file's contents"),
-    ("grep PATTERN [PATH]", "search file contents recursively"),
-    ("find NAME", "search filenames recursively"),
     ("mkdir NAME", "create a folder here"),
     ("touch NAME", "create an empty file here"),
     ("mv SRC DST", "move or rename something"),
@@ -33,30 +27,6 @@ FILES_HELP = [
 ]
 
 MUTATING_COMMANDS = {"mkdir", "touch", "mv", "rm"}
-
-COMMAND_TIMEOUT = 10
-
-
-def run_bin(argv, cwd):
-    """Every non-cd command is a real coreutils binary, invoked with an
-    explicit argv list (never shell=True) so there's no shell-metacharacter
-    interpretation to worry about - shlex.split just tokenizes the typed
-    command, it never hands anything to an actual shell interpreter. Every
-    path-shaped argument is resolved through safe_path() before it ever
-    reaches here, so containment/dotfile protection happens before, not
-    after, a real process is spawned."""
-
-    try:
-        return subprocess.run(
-            argv,
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            timeout=COMMAND_TIMEOUT,
-            stdin=subprocess.DEVNULL,
-        )
-    except subprocess.TimeoutExpired:
-        return subprocess.CompletedProcess(argv, 1, "", "timed out")
 
 
 def safe_path(workspace, relpath):
@@ -127,153 +97,6 @@ def build_breadcrumbs(relpath):
     return crumbs
 
 
-def do_ls(workspace, cwd, args):
-    if len(args) > 1:
-        return {"message": "ls takes at most one path", "is_error": True}
-
-    argpath = args[0] if args else ""
-    target = resolve_dir(workspace, cwd, argpath)
-
-    if not target.is_dir():
-        return {"message": f"{argpath or '.'} is not a directory", "is_error": True}
-
-    result = run_bin(["ls", "-la", "."], cwd=str(target))
-
-    if result.returncode != 0:
-        return {"message": result.stderr.strip() or "ls failed", "is_error": True}
-
-    return {"output": result.stdout}
-
-
-def do_pwd(workspace, cwd, args):
-    if args:
-        return {"message": "pwd takes no arguments", "is_error": True}
-
-    # A real pwd would print the server's actual disk path - not
-    # meaningful (or safe to expose) to someone browsing a workspace, so
-    # this one's just Python echoing back where they are in the
-    # workspace, not a subprocess call.
-    return {"output": ("/" + cwd) if cwd else "/"}
-
-
-def do_cat(workspace, cwd, args):
-    if len(args) != 1:
-        return {"message": "cat needs exactly one file", "is_error": True}
-
-    target = safe_path(workspace, f"{cwd}/{args[0]}")
-
-    if not target.is_file():
-        return {"message": f"{args[0]} is not a file", "is_error": True}
-
-    result = run_bin(["cat", str(target)], cwd=str(workspace))
-
-    if result.returncode != 0:
-        return {"message": result.stderr.strip() or "cat failed", "is_error": True}
-
-    text = result.stdout
-
-    if len(text) > 200_000:
-        text = text[:200_000] + "\n... (truncated)"
-
-    return {"output": text}
-
-
-def do_grep(workspace, cwd, args):
-    if not args or len(args) > 2:
-        return {"message": "grep needs a pattern and an optional path", "is_error": True}
-
-    pattern = args[0]
-    argpath = args[1] if len(args) > 1 else ""
-    target = resolve_dir(workspace, cwd, argpath)
-
-    if not target.is_dir():
-        return {"message": f"{argpath or '.'} is not a directory", "is_error": True}
-
-    # Search each non-dotfile top-level entry by name, not "." itself -
-    # --exclude-dir=.* matches "." too, which would silently exclude the
-    # entire search root and make every grep look like "no matches".
-    children = sorted(c.name for c in target.iterdir() if not c.name.startswith("."))
-
-    if not children:
-        return {"message": "no matches", "is_error": False}
-
-    result = run_bin(
-        ["grep", "-rniI", "--exclude-dir=.*", "--exclude=.*", "-e", pattern, *children],
-        cwd=str(target),
-    )
-
-    # grep exits 1 for "no matches", not an error - only >=2 is real trouble.
-    if result.returncode not in (0, 1):
-        return {"message": result.stderr.strip() or "grep failed", "is_error": True}
-
-    lines = [l for l in result.stdout.splitlines() if l]
-
-    if not lines:
-        return {"message": "no matches", "is_error": False}
-
-    base = to_relpath(workspace, target)
-    entries = []
-
-    for line in lines[:200]:
-        parts = line.split(":", 2)
-
-        if len(parts) != 3:
-            continue
-
-        rel, lineno, content = parts
-        rel = rel[2:] if rel.startswith("./") else rel
-        full_rel = f"{base}/{rel}" if base else rel
-
-        entries.append({
-            "name": Path(rel).name,
-            "relpath": full_rel,
-            "is_dir": False,
-            "detail": f"line {lineno}: {content.strip()[:160]}",
-        })
-
-    return {"entries": entries, "find": pattern}
-
-
-def do_find(workspace, cwd, args):
-    if len(args) != 1:
-        return {"message": "find needs exactly one name", "is_error": True}
-
-    name = args[0]
-    target = resolve_dir(workspace, cwd, "")
-
-    result = run_bin(["find", ".", "-iname", f"*{name}*"], cwd=str(target))
-
-    if result.returncode != 0:
-        return {"message": result.stderr.strip() or "find failed", "is_error": True}
-
-    base = to_relpath(workspace, target)
-    entries = []
-
-    for line in result.stdout.splitlines():
-        if not line or line == ".":
-            continue
-
-        rel = line[2:] if line.startswith("./") else line
-
-        if any(part.startswith(".") for part in Path(rel).parts):
-            continue
-
-        full_rel = f"{base}/{rel}" if base else rel
-
-        entries.append({
-            "name": Path(rel).name,
-            "relpath": full_rel,
-            "is_dir": (target / rel).is_dir(),
-        })
-
-    entries.sort(key=lambda e: (not e["is_dir"], e["relpath"].lower()))
-
-    if not entries:
-        return {"message": "no matches", "is_error": False}
-
-    return {"entries": entries}
-
-
 def do_mkdir(workspace, cwd, args):
     if len(args) != 1:
         return {"message": "mkdir needs exactly one name", "is_error": True}
@@ -283,10 +106,7 @@ def do_mkdir(workspace, cwd, args):
     if target.exists():
         return {"message": f"{args[0]} already exists", "is_error": True}
 
-    result = run_bin(["mkdir", str(target)], cwd=str(workspace))
-
-    if result.returncode != 0:
-        return {"message": result.stderr.strip() or "mkdir failed", "is_error": True}
+    target.mkdir(parents=True)
 
     return {"message": f"created {args[0]}/"}
 
@@ -304,11 +124,7 @@ def do_touch(workspace, cwd, args):
     # convention (matching Editor's save()) is that naming a file under a
     # not-yet-existing folder just creates the folder too.
     target.parent.mkdir(parents=True, exist_ok=True)
-
-    result = run_bin(["touch", str(target)], cwd=str(workspace))
-
-    if result.returncode != 0:
-        return {"message": result.stderr.strip() or "touch failed", "is_error": True}
+    target.touch()
 
     return {"message": f"created {args[0]}"}
 
@@ -330,11 +146,7 @@ def do_mv(workspace, cwd, args):
         return {"message": f"{args[1]} already exists", "is_error": True}
 
     dst.parent.mkdir(parents=True, exist_ok=True)
-
-    result = run_bin(["mv", str(src), str(dst)], cwd=str(workspace))
-
-    if result.returncode != 0:
-        return {"message": result.stderr.strip() or "mv failed", "is_error": True}
+    shutil.move(str(src), str(dst))
 
     return {"message": f"moved {args[0]} -> {args[1]}"}
 
@@ -356,28 +168,18 @@ def do_rm(workspace, cwd, args):
 
     if target.is_dir():
         if recursive:
-            argv = ["rm", "-r", str(target)]
+            shutil.rmtree(target)
         elif any(target.iterdir()):
             return {"message": f"{target_args[0]} isn't empty - use rm -r", "is_error": True}
         else:
-            argv = ["rmdir", str(target)]
+            target.rmdir()
     else:
-        argv = ["rm", str(target)]
-
-    result = run_bin(argv, cwd=str(workspace))
-
-    if result.returncode != 0:
-        return {"message": result.stderr.strip() or "rm failed", "is_error": True}
+        target.unlink()
 
     return {"message": f"deleted {target_args[0]}"}
 
 
 COMMAND_HANDLERS = {
-    "ls": do_ls,
-    "pwd": do_pwd,
-    "cat": do_cat,
-    "grep": do_grep,
-    "find": do_find,
     "mkdir": do_mkdir,
     "touch": do_touch,
     "mv": do_mv,
@@ -385,11 +187,11 @@ COMMAND_HANDLERS = {
 }
 
 
-def entry_links(entries, workspace_id, cwd, find=None):
-    """Attaches an `href` to each listing/search-result entry - a folder
-    navigates within Files, a file hands off to the shared Editor app,
-    carrying enough context (app/home) for Editor's topbar and close
-    button to point back at the exact directory being browsed here.
+def entry_links(entries, workspace_id, cwd):
+    """Attaches an `href` to each listing entry - a folder navigates
+    within Files, a file hands off to the shared Editor app, carrying
+    enough context (app/home) for Editor's topbar and close button to
+    point back at the exact directory being browsed here.
 
     Editor's own workspace root is the same true workspace root Files
     browses from (see apps.editor.routes.editor_workspace), so a file's
@@ -401,17 +203,9 @@ def entry_links(entries, workspace_id, cwd, find=None):
         if entry["is_dir"]:
             entry["href"] = url_for("files.browse", workspace=workspace_id, path=entry["relpath"])
         else:
-            editor_kwargs = dict(
-                file=entry["relpath"],
-                workspace=workspace_id,
-                app="Files",
-                home=home,
+            entry["href"] = url_for(
+                "editor.view", file=entry["relpath"], workspace=workspace_id, app="Files", home=home,
             )
-
-            if find:
-                editor_kwargs["find"] = find
-
-            entry["href"] = url_for("editor.view", **editor_kwargs)
 
     return entries
 
@@ -445,9 +239,6 @@ def browse():
     message = ""
     is_error = False
     help_commands = None
-    is_search = False
-    command_output = None
-    entries = []
 
     if request.method == "POST":
         query = request.form.get("query", "").strip()
@@ -486,13 +277,6 @@ def browse():
                     result = COMMAND_HANDLERS[first](workspace, cwd, rest)
                     message = result.get("message", "")
                     is_error = result.get("is_error", False)
-                    command_output = result.get("output")
-
-                    if "entries" in result:
-                        is_search = True
-                        entries = entry_links(
-                            result["entries"], record["id"], cwd, find=result.get("find"),
-                        )
 
                     if not is_error and first in MUTATING_COMMANDS:
                         auto_sync(workspace, record["id"], force=True)
@@ -500,18 +284,17 @@ def browse():
             else:
                 message, is_error = f"unknown command: {first}", True
 
-    if not is_search:
-        entries = entry_links(list_dir(workspace, cwd), record["id"], cwd)
+    entries = entry_links(list_dir(workspace, cwd), record["id"], cwd)
 
-        if cwd:
-            parent = cwd.rsplit("/", 1)[0] if "/" in cwd else ""
-            entries = [{
-                "name": "..",
-                "relpath": parent,
-                "is_dir": True,
-                "size": None,
-                "href": url_for("files.browse", workspace=record["id"], path=parent),
-            }] + entries
+    if cwd:
+        parent = cwd.rsplit("/", 1)[0] if "/" in cwd else ""
+        entries = [{
+            "name": "..",
+            "relpath": parent,
+            "is_dir": True,
+            "size": None,
+            "href": url_for("files.browse", workspace=record["id"], path=parent),
+        }] + entries
 
     return render_template(
         "files_home.html",
@@ -519,10 +302,8 @@ def browse():
         path=cwd,
         breadcrumbs=build_breadcrumbs(cwd),
         entries=entries,
-        is_search=is_search,
         message=message,
         is_error=is_error,
-        command_output=command_output,
         help_commands=help_commands,
         help_intro=(FILES_HELP_INTRO if help_commands else None),
         conflict=conflict,

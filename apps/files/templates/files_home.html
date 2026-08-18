@@ -16,7 +16,7 @@
 <textarea
     id="query"
     name="query"
-    placeholder="cd, ls, cat, grep, find, mkdir, touch, mv, rm..."
+    placeholder="cd, mkdir, touch, mv, rm..."
     spellcheck="false"
     autocomplete="off"
     autofocus></textarea>
@@ -39,17 +39,9 @@
 
 {% endif %}
 
-{% if command_output is not none %}
-
-<pre id="output">{{ command_output }}</pre>
-
-{% endif %}
-
 {% include "_help.html" %}
 
 {% if not help_commands %}
-
-{% if not is_search %}
 
 <div id="breadcrumbs">
 <a href="/apps/files/?workspace={{ workspace_id }}&path=" class="crumb">files</a>
@@ -58,8 +50,6 @@
 <a href="/apps/files/?workspace={{ workspace_id }}&path={{ crumb.path }}" class="crumb">{{ crumb.name | lower }}</a>
 {% endfor %}
 </div>
-
-{% endif %}
 
 {% if entries %}
 
@@ -73,23 +63,11 @@
 <span class="record-title record-type-{{ 'dir' if entry.is_dir else 'file' }}">{{ entry.name }}{% if entry.is_dir %}/{% endif %}</span>
 </div>
 
-{% if is_search %}
-<div class="record-path">{{ entry.relpath }}</div>
-{% endif %}
-
-{% if entry.detail %}
-<div class="record-path">{{ entry.detail }}</div>
-{% endif %}
-
 </a>
 
 {% endfor %}
 
 </div>
-
-{% elif is_search %}
-
-<div class="muted" style="margin-top: 32px;">no matches</div>
 
 {% else %}
 
