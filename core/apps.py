@@ -22,6 +22,9 @@ def load_apps(app):
 
         app.register_blueprint(module.bp)
 
+        if getattr(module, "HIDDEN", False):
+            continue
+
         loaded.append({
             "id": directory.name,
             "name": getattr(module, "NAME", directory.name.capitalize()),

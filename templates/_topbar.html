@@ -1,13 +1,11 @@
 {% if current_user_ctx %}
 
-{% set visible_toggles = (workspace_toggles | selectattr('visible') | list) if workspace_toggles is defined else None %}
-
 <nav class="topbar">
 <button type="button" class="topbar-seg topbar-app" onclick="openMenu('app')">{{ (app_label or "home") | lower }}</button>
 <span class="topbar-sep">/</span>
 <button type="button" class="topbar-seg topbar-group" style="color: {{ current_user_ctx.accent_color }}" onclick="openMenu('group')">{{ current_group.name | lower }}</button>
 <span class="topbar-sep">/</span>
-<button type="button" class="topbar-seg topbar-workspace" onclick="openMenu('workspace')">{% if visible_toggles is not none %}{% if visible_toggles | length > 1 %}multiple{% elif visible_toggles | length == 1 %}{{ visible_toggles[0].name | lower }}{% else %}none{% endif %}{% else %}{{ current_workspace.name | lower }}{% endif %}</button>
+<button type="button" class="topbar-seg topbar-workspace" onclick="openMenu('workspace')">{{ current_workspace.name | lower }}</button>
 </nav>
 
 <div id="menu-app" class="menu-overlay hidden">
@@ -64,17 +62,6 @@
 </div>
 
 <div class="menu-list">
-{% if workspace_toggles is defined %}
-<form id="visibilityForm" method="post" action="/apps/documents/visibility" class="menu-checklist">
-<input type="hidden" name="all_ids" value="{% for w in workspace_toggles %}{{ w.id }}{{ "," if not loop.last }}{% endfor %}">
-{% for w in workspace_toggles %}
-<label class="menu-item menu-toggle" data-search="{{ (w.group_name ~ ' ' ~ w.name) | lower }}">
-<input type="checkbox" name="visible_ids" value="{{ w.id }}" {% if w.visible %}checked{% endif %}>
-{{ w.group_name | lower }} / {{ w.name | lower }}
-</label>
-{% endfor %}
-</form>
-{% else %}
 {% for w in workspace_options %}
 <form method="post" action="/apps/ark/workspaces" class="menu-form">
 <input type="hidden" name="workspace_id" value="{{ w.id }}">
@@ -83,7 +70,6 @@
 {% endfor %}
 {% if not git_linked %}
 <a href="/apps/ark/workspace" class="menu-item" data-search="link this workspace">link this workspace</a>
-{% endif %}
 {% endif %}
 </div>
 
@@ -108,26 +94,7 @@ function filterMenu(name, token) {
     });
 }
 
-// No apply button on the workspace visibility picker - closing the menu
-// is what applies it. Only actually resubmit if a checkbox was touched,
-// so opening/closing the workspace menu without touching anything doesn't
-// force a page reload every time.
-var visibilityDirty = false;
-
-document.addEventListener('change', function (e) {
-    if (e.target.matches && e.target.matches('#visibilityForm input[type="checkbox"]')) {
-        visibilityDirty = true;
-    }
-});
-
 function closeMenus() {
-    var visForm = document.getElementById('visibilityForm');
-
-    if (visForm && visibilityDirty) {
-        visForm.submit();
-        return;
-    }
-
     document.querySelectorAll('.menu-overlay').forEach(function (el) {
         el.classList.add('hidden');
     });

@@ -57,8 +57,7 @@ TAG_PALETTE = (
 def tag_color(text):
     """Deterministic color per string - same text always lands on the
     same palette entry, so tags/metadata/usernames stay visually stable
-    across reloads while still being distinguishable from each other.
-    Mirrored in JS in file.html's highlightMeta() - keep both in sync."""
+    across reloads while still being distinguishable from each other."""
 
     return TAG_PALETTE[sum(ord(c) for c in text) % len(TAG_PALETTE)]
 

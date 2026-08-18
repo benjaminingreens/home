@@ -17,15 +17,17 @@
 
 </div>
 
-<pre id="fileread">{% for line in file_lines %}<span class="line{% if loop.index0 == highlight_line %} hl{% endif %}">{{ line | safe }}</span>
+<pre id="fileread">{% for line in file_lines %}<span class="line{% if loop.index0 == highlight_line %} hl{% endif %}">{{ line }}</span>
 {% endfor %}</pre>
 
 <div id="taWrap" style="display: none;">
 
-<form method="post" action="/apps/ark/save" id="fileform">
+<form method="post" action="/apps/editor/save" id="fileform">
 
 <input type="hidden" name="path" value="{{ file_path }}">
 <input type="hidden" name="workspace" value="{{ workspace_id }}">
+<input type="hidden" name="app" value="{{ app_label }}">
+<input type="hidden" name="home" value="{{ app_home }}">
 
 <textarea
     name="content"
@@ -133,35 +135,6 @@ let undoStack = [];
 
 function escapeHtml(s) {
     return s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-}
-
-// Keep in sync with core/colors.py's META_COLOR.
-const META_COLOR = "#f2d94e";
-
-// Mirrors core/colors.py's colorize_meta() - one consistent color for
-// the actual metadata items, not the surrounding {}/; punctuation, and
-// not a different color per item.
-function colorizeMeta(inner) {
-    const parts = inner.split(";").map(p => p.trim()).filter(Boolean);
-
-    if (!parts.length) return "";
-
-    return parts
-        .map(p => '<span style="color: ' + META_COLOR + '">' + escapeHtml(p) + "</span>")
-        .join("; ");
-}
-
-function highlightMeta(line) {
-    const m = line.match(/\{([^{}]*)\}(;;)?\s*$/);
-
-    if (!m) return escapeHtml(line);
-
-    let html = escapeHtml(line.slice(0, m.index));
-    html += "{" + colorizeMeta(m[1]) + "}";
-
-    if (m[2]) html += escapeHtml(m[2]);
-
-    return html;
 }
 
 function autosize() {
@@ -309,7 +282,7 @@ function save() {
 
         const lines = textarea.value.split("\n");
         fileread.innerHTML = lines
-            .map(l => '<span class="line">' + highlightMeta(l) + "</span>")
+            .map(l => '<span class="line">' + escapeHtml(l) + "</span>")
             .join("\n");
 
         showSaveStatus("saved", false);
@@ -324,7 +297,7 @@ function scheduleAutosave() {
 }
 
 function acquireLock() {
-    return fetch("/apps/ark/lock", {
+    return fetch("/apps/editor/lock", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ workspace: WORKSPACE_ID, path: FILE_PATH }),
@@ -343,7 +316,7 @@ function acquireLock() {
 
 function releaseLock() {
     navigator.sendBeacon(
-        "/apps/ark/unlock",
+        "/apps/editor/unlock",
         new URLSearchParams({ workspace: WORKSPACE_ID, path: FILE_PATH }),
     );
 }

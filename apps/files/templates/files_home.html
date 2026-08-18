@@ -8,23 +8,30 @@
 
 <form id="command" method="post">
 
+<input type="hidden" name="workspace" value="{{ workspace_id }}">
+<input type="hidden" name="path" value="{{ path }}">
+
 <div id="field">
 
 <textarea
     id="query"
     name="query"
-    placeholder="enter a command..."
+    placeholder="mkdir, touch, mv, rm, or search filenames..."
     spellcheck="false"
     autocomplete="off"
     autofocus></textarea>
 
-<div id="mirror" aria-hidden="true"><span id="mBefore"></span><span id="mCursor">&nbsp;</span><span id="mAfter"></span><span id="mGhost"></span></div>
+<div id="mirror" aria-hidden="true"><span id="mBefore"></span><span id="mCursor">&nbsp;</span><span id="mAfter"></span></div>
 
 </div>
 
 </form>
 
 </div>
+
+{% if conflict %}
+<div class="message error"><a href="/apps/ark/conflicts?workspace={{ workspace_id }}">sync conflict in this workspace - tap to resolve</a></div>
+{% endif %}
 
 {% if message %}
 
@@ -34,47 +41,35 @@
 
 {% include "_help.html" %}
 
-{% if selected %}
+{% if not help_commands %}
 
-<div id="selected">
+{% if not is_search %}
 
-{% for s in selected %}
-
-<a href="{{ s.remove_href }}">#{{ s.tag }} &times;</a>
-
+<div id="breadcrumbs">
+<a href="/apps/files/?workspace={{ workspace_id }}&path=" class="crumb">files</a>
+{% for crumb in breadcrumbs %}
+<span class="crumb-sep">/</span>
+<a href="/apps/files/?workspace={{ workspace_id }}&path={{ crumb.path }}" class="crumb">{{ crumb.name | lower }}</a>
 {% endfor %}
-
 </div>
 
 {% endif %}
 
-{% if notes %}
+{% if entries %}
 
 <div id="results">
 
-{% for note in notes %}
+{% for entry in entries %}
 
-<a class="record-card" href="/apps/ark/?file={{ note.path }}&workspace={{ note.workspace_id }}&app=Documents&home=/apps/documents/&find={{ (note.preview or note.title or '') | urlencode }}">
+<a class="record-card" href="{{ entry.href }}">
 
-{% if note.title %}
 <div class="record-head">
-<span class="record-title">{{ note.title }}</span>
-</div>
-{% endif %}
-
-{% if note.preview %}
-<div class="record-preview{% if not note.title %} primary{% endif %}">{{ note.preview }}</div>
-{% elif not note.title %}
-<div class="record-preview faint">[no text]</div>
-{% endif %}
-
-<div class="record-meta-row">
-{% if show_origin %}<span class="record-origin">{{ note.workspace_label | lower }}</span>{% endif %}
-{% if note.meta %}<span class="record-id">{{ note.meta | colorize_meta }}</span>{% endif %}
+<span class="record-type record-type-{{ 'dir' if entry.is_dir else 'file' }}">{{ 'dir' if entry.is_dir else 'file' }}</span>
+<span class="record-title">{{ entry.name }}{% if entry.is_dir %}/{% endif %}</span>
 </div>
 
-{% if note.path %}
-<div class="record-path">{{ note.path }}</div>
+{% if is_search %}
+<div class="record-path">{{ entry.relpath }}</div>
 {% endif %}
 
 </a>
@@ -83,17 +78,21 @@
 
 </div>
 
-{% elif selected %}
+{% elif is_search %}
 
-<div class="muted" style="margin-top: 32px;">no notes match these tags</div>
+<div class="muted" style="margin-top: 32px;">no matches</div>
+
+{% else %}
+
+<div class="muted" style="margin-top: 32px;">empty</div>
+
+{% endif %}
 
 {% endif %}
 
 </div>
 
 <script>
-
-const TAGS = {{ (available or []) | tojson }};
 
 const field = document.getElementById("field");
 
@@ -107,23 +106,9 @@ const mCursor = document.getElementById("mCursor");
 
 const mAfter = document.getElementById("mAfter");
 
-const mGhost = document.getElementById("mGhost");
-
 query.focus();
 
 query.selectionStart = query.selectionEnd = query.value.length;
-
-let ghostTag = null;
-
-function bestTagMatch(token) {
-
-    token = token.toLowerCase().replace(/^#/, "");
-
-    if (!token) return null;
-
-    return TAGS.find(t => t.toLowerCase().startsWith(token)) || null;
-
-}
 
 function renderMirror() {
 
@@ -165,30 +150,6 @@ function renderMirror() {
 
     }
 
-    const atEnd = pos === val.length && collapsed;
-
-    const trimmed = val.trim();
-
-    const token = trimmed.replace(/^#/, "");
-
-    ghostTag = (atEnd && token) ? bestTagMatch(token) : null;
-
-    if (ghostTag && ghostTag.toLowerCase().startsWith(token.toLowerCase())) {
-
-        const rest = ghostTag.toLowerCase().slice(token.length);
-
-        mCursor.textContent = rest.slice(0, 1) || " ";
-        mCursor.classList.remove("hidden");
-        mGhost.textContent = rest.slice(1);
-
-    } else {
-
-        ghostTag = null;
-
-        mGhost.textContent = "";
-
-    }
-
 }
 
 function update() {
@@ -198,20 +159,6 @@ function update() {
     query.style.height = query.scrollHeight + "px";
 
     renderMirror();
-
-}
-
-function acceptGhost() {
-
-    if (!ghostTag) return false;
-
-    query.value = ghostTag.toLowerCase();
-
-    query.selectionStart = query.selectionEnd = query.value.length;
-
-    update();
-
-    return true;
 
 }
 
@@ -229,37 +176,9 @@ query.addEventListener("keydown", e => {
 
     }
 
-    if (e.key === "Tab" && ghostTag) {
-
-        e.preventDefault();
-
-        acceptGhost();
-
-        return;
-
-    }
-
-    if (
-
-        e.key === "ArrowRight"
-        && ghostTag
-        && query.selectionStart === query.value.length
-
-    ) {
-
-        e.preventDefault();
-
-        acceptGhost();
-
-        return;
-
-    }
-
     if (e.key !== "Enter")
         return;
 
-    // Enter submits exactly what was typed - the ghost text is only a
-    // preview. Tab / ArrowRight (above) are the only way to accept it.
     e.preventDefault();
 
     form.submit();

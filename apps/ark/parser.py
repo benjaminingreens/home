@@ -1,15 +1,10 @@
 import re
 
-from markupsafe import escape
-
 from core.text import split_title
-from core.colors import colorize_meta
 
 RECORD = re.compile(
     r"^(note|todo|evnt):\s*(.*?)\s*(?:({.*?})\s*)?\[(.*?)\]$"
 )
-
-TRAILING_META = re.compile(r"(\{[^{}]*\})(;;)?\s*$")
 
 
 def strip_id(meta):
@@ -88,26 +83,3 @@ def parse(stdout):
         })
 
     return records
-
-
-def highlight_meta(line):
-    """Ark stores records on disk as `type: text {meta};;` - reading a
-    file shows that raw syntax verbatim, so wrap the trailing {meta}
-    block's individual ;-separated items in their own colors (via
-    colorize_meta - same per-item treatment as the result cards) instead
-    of the whole block as one color. Falls back to a plain escaped line
-    when there's no trailing {...} to highlight (e.g. plain text files,
-    .arkrc)."""
-
-    m = TRAILING_META.search(line)
-
-    if not m:
-        return escape(line)
-
-    prefix = line[:m.start()]
-    html = escape(prefix) + colorize_meta(m.group(1))
-
-    if m.group(2):
-        html += escape(m.group(2))
-
-    return html

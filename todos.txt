@@ -21,15 +21,11 @@ priority 1 because any real answer here changes where data physically lives on d
 
 --- priority 3 ---
 
-todo: rename Documents -> Files (phase 3 of the file-structure redesign; see history section below for phase 1/2). fully file-format-agnostic - Files never parses ark records, it just reads/writes plain text (and eventually other file types) like any generic file. it can browse into ark's files same as anything else in documents/ + media/, it just sees them as text, not records - that parsing stays exclusively inside the dedicated ark app. basic unix-like commands only (browse/filter/search, create/rename/move/delete) - no shell-style invocation of other apps. resolved: this is not blocked on the ark-file-recognition question below - that's about ark's own scope, not Files'.
-
 todo: today ark only recognises files as its own within a dedicated ark repo (i.e. under a workspace's documents/ for an app=ark workspace) - anything outside that isn't treated as an ark file at all, regardless of extension. eventually: allow .ark-suffixed files to be recognised as ark files wherever they live, not just inside a dedicated ark repo - identified by the .ark extension itself rather than by location. distinct from the scrapped phase 2 flat-folder idea (see history below) - this is about where ark can find/recognise files, not about changing ark's own internal note/todo/evnt/yyyy/mm organisation inside a repo, which stays as decided. not scoped, exploratory.
 
 todo: basic comment-like syntax convention for plain text files, in service of a possible future where ark can extract records embedded inside other file types (e.g. a .py file carrying an inline todo record) - separate, further-out idea than the .ark-suffix one above, not decided on.
 
-todo: file editor as its own app ("Editor"), out of Ark's file view (apps/ark/templates/file.html). needs its own permission model - access control currently rides on Ark's group membership, which won't generalise once not every file is an ark file (see file editing permissions, below). most natural place for markdown rendering (priority 4) if that happens.
-
-todo: file editing permissions - even within a group, should anyone be able to edit any file, or is there a narrower per-file permission (e.g. assignee-only)? assignee (@) is an ark metadata concept though, so it won't obviously generalise past ark files. blocks a real permission model for the editor app above.
+todo: file editing permissions - even within a group, should anyone be able to edit any file, or is there a narrower per-file permission (e.g. assignee-only)? assignee (@) is an ark metadata concept though, so it won't obviously generalise past ark files. Editor (see history below) currently reuses Ark's existing coarse group-membership check unchanged - this is still open, not resolved by that.
 
 todo: diffs and edit history for text files - show what changed and by whom, and let people look back through a file's history. documents/ is already git-backed per workspace, so this is plausibly "just" surfacing existing git history in the UI rather than new infrastructure.
 
@@ -37,9 +33,9 @@ todo: a unix-shell-style app for a workspace, connected to a separate "playgroun
 
 todo: plugin layer / mechanism for people to write and install their own apps, with real security boundaries around them. big, not scoped yet.
 
-todo: search within Documents. directly tests "the data is the index" - a real search has to stay a live scan over tagged content rather than a background index, to stay consistent with ark's philosophy (see the phase 2 scrapped note in the history section for why an index isn't on the table).
+todo: content search (not just filename search) within Files. Files' current `<text>` command only matches filenames (apps/files/routes.py::search_files) - searching file contents directly tests "the data is the index" though, since a real content search has to stay a live scan rather than a background index, to stay consistent with ark's philosophy (see the phase 2 scrapped note in the history section for why an index isn't on the table).
 
-todo: what's the underlying interaction model for command-style apps (Documents in particular)? results currently show before any input in some places; help currently sits next to results rather than being the result of asking for help. these should follow one consistent rule instead of being decided per-screen. same underlying question, folded in here: add an 'all' command to Documents to show everything without needing a tag first; make the existing "interactive/clickable help" idea (_help.html command list becoming clickable) actually express that rule, not just be clickable text.
+todo: what's the underlying interaction model for command-style apps in general (e.g. Ark's own terminal)? results currently show before any input in some places; help currently sits next to results rather than being the result of asking for help. these should follow one consistent rule instead of being decided per-screen. Files already resolved its own version of this (always shows the current directory's listing, since browsing is the whole point of that app) - this is about the rest of the app suite. same underlying question, folded in here: make the existing "interactive/clickable help" idea (_help.html command list becoming clickable) actually express whatever that rule ends up being, not just be clickable text.
 
 todo: let people see workspaces from more than one group at once, instead of one workspace at a time. related to the group/workspace switcher problems logged in issues.txt.
 
@@ -47,7 +43,7 @@ todo: let people see workspaces from more than one group at once, instead of one
 
 todo: chat - add live messaging (websockets/socket.io) so people don't have to refresh. visual redesign already shipped (log-style layout, coloured usernames, growing textarea, display_time) - this is just the realtime transport. means moving off sync gunicorn workers (e.g. -k eventlet) - a real infra change. issues.txt has the current "not receiving live" report confirming this is still outstanding.
 
-todo: build a media viewer app, opening files under a workspace's media/ branch - launched from Files (phase 3) the same way the editor app will be.
+todo: build a media viewer app, opening files under a workspace's media/ branch - launched from Files the same way Editor already is for text files.
 
 todo: build a calendar app, linking to a workspace's ark evnt records.
 
@@ -57,9 +53,9 @@ todo: build a "postbox" app. not scoped.
 
 todo: a suite of office-style apps. not scoped, and in real tension with homeapp's plain-text/minimal philosophy - worth being honest about that before sinking time into it.
 
-todo: markdown rendering for notes/files - most natural home is the editor app (priority 3) once it exists.
+todo: markdown rendering for notes/files - most natural home is the Editor app (see history below), not built yet.
 
-todo: download option for files, wherever they're viewed (Ark file view / Documents / eventual Files+editor).
+todo: download option for files, wherever they're viewed (Editor, in practice - that's the shared surface everything opens a file through now).
 
 todo: expose .arkrc settings in the Settings app, in an intuitive way - not just an editable dotfile. not scoped yet.
 
@@ -91,4 +87,4 @@ phase 2: SCRAPPED (2026-08-18). Considered redesigning ark to drop the note/todo
 
   vendored ark (apps/ark/vendor, submodule of benjaminingreens/ark.git) and the real upstream repo at /home/benjamin/ark need no changes as a result of this decision - phase 2 never got past planning, no code was touched.
 
-phase 3 is now tracked as a priority 3 todo above, not repeated here.
+phase 3 (DONE, 2026-08-18): replaced Documents with Files, and - as an extra, related piece of work decided mid-implementation - extracted a generic Editor app (apps/editor/, HIDDEN so it never shows in the launcher/switcher) out of what used to be Ark's own embedded file view/edit/save/lock code. The view/edit/save/lock/autosave/vim-mode machinery was never actually Ark-specific, it just used to live inside apps/ark/ - it's now shared infrastructure any app links a user into via a file=/workspace=/app=/home= URL (apps/editor/routes.py::editor_workspace() resolves off the workspace row's own `app` column, not a hardcoded "ark", so it's reusable beyond Ark's workspaces too). Ark's result-list links and Files' file rows both hand off to it now; Ark kept its own command/query engine and record-highlighted result-card rendering unchanged (colorize_meta, still Ark-only). Files (apps/files/) is a clickable directory listing (not a tag browser) - `mkdir`/`touch`/`mv`/`rm [-r]` typed commands for mutations, everything else typed is a case-insensitive filename search; never parses ark record syntax, treats every file as opaque plain text; scoped to a workspace's documents/ only (media/ isn't written to by anything yet); reuses Ark's existing workspace DB rows (app="ark") rather than minting its own, and Ark's own `ark_workspace()` resolver directly, both required for file_locks to correctly collide between Ark/Files/Editor editing the same file. `.ark`/`.git` (and any other dotfile) are filtered out of every listing, search, and command target. `/apps/ark/conflicts` (git conflict resolution) stayed in Ark, unchanged, out of scope. `templates/_topbar.html`'s old multi-workspace-visibility checklist (Documents-only, dead once Documents was deleted) was removed rather than repointed. verified end-to-end against a real dev-server run: Ark add/query/tidy still work, note content opens correctly through Editor with meta-highlighting correctly gone (plain text, no color), save/lock/unlock persist to disk, mkdir/touch/mv/rm/rm -r all work and correctly refuse a non-empty dir without -r, path-traversal and dotfile-mutation attempts both 403, filename search works, and the app list/topbar correctly show Ark/Chat/Files/Settings with Editor never appearing - zero errors in the server log.

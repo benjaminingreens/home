@@ -1,16 +1,12 @@
-from urllib.parse import urlencode
-
 from flask import render_template, request, redirect, abort
 
 from core.auth import current_user
 from core import workspaces as core_workspaces
 from core import groups as core_groups
-from core import locks as core_locks
 from core import sync_state
 
 from . import bp, NAME
 from .runner import install, run, is_git_linked, auto_sync, theirs_content, resolve_conflict
-from .parser import highlight_meta
 
 
 def resolve_active_workspace(user):
@@ -70,16 +66,6 @@ def workspace_ready(workspace):
     return (workspace / ".ark").exists()
 
 
-def safe_file(workspace, relpath):
-    relpath = relpath.strip() or "note/inbox.txt"
-    target = (workspace / relpath).resolve()
-
-    if workspace.resolve() not in target.parents and target != workspace.resolve():
-        abort(403)
-
-    return target
-
-
 ARK_HELP_INTRO = (
     "ark is your personal notes and task repository. jot down notes, "
     "todos, and events as plain text - they're kept organized and synced "
@@ -91,8 +77,6 @@ ARK_HELP = [
     ("tidy", "sort inbox into note/todo/evnt (dry run - shows what would move)"),
     ("tidy --apply", "same, but actually applies the changes"),
 ]
-
-CONFLICT_MESSAGE = "workspace has a sync conflict - resolve it first"
 
 
 def process(workspace, workspace_id, query):
@@ -129,15 +113,12 @@ def process(workspace, workspace_id, query):
 
 @bp.route("/", methods=["GET", "POST"])
 def home():
-    file_path = request.args.get("file")
-    workspace_id = request.args.get("workspace") if file_path else None
-
-    user, workspace, record = ark_workspace(workspace_id)
+    user, workspace, record = ark_workspace()
 
     if not user:
         return redirect("/login")
 
-    if not file_path and not workspace_ready(workspace):
+    if not workspace_ready(workspace):
         return redirect("/apps/ark/workspace")
 
     # Opportunistic pull-and-push on every visit - pulls whatever anyone
@@ -148,42 +129,6 @@ def home():
     # per few seconds, no matter how many people load this page at once.
     auto_sync(workspace, record["id"])
     conflict = sync_state.is_conflicted(record["id"])
-
-    if file_path:
-        target = safe_file(workspace, file_path)
-
-        file_content = ""
-        if target.exists() and target.is_file():
-            file_content = target.read_text(encoding="utf-8", errors="replace")
-
-        file_lines = file_content.split("\n")
-
-        find = request.args.get("find", "")
-        highlight_line = None
-
-        if find:
-            for i, line in enumerate(file_lines):
-                if find in line:
-                    highlight_line = i
-                    break
-
-        lock_user_id, lock_username = core_locks.holder(record["id"], file_path)
-        locked_by = lock_username if lock_user_id and lock_user_id != user["id"] else None
-
-        return render_template(
-            "file.html",
-            page_class="editor",
-            file_path=file_path,
-            file_content=file_content,
-            file_lines=[highlight_meta(l) for l in file_lines],
-            highlight_line=highlight_line,
-            locked_by=locked_by,
-            conflict=conflict,
-            user=user,
-            app_label=request.args.get("app", NAME),
-            app_home=request.args.get("home", "/apps/ark/"),
-            workspace_id=record["id"],
-        )
 
     records = []
     query = ""
@@ -324,78 +269,6 @@ def workspace_setup():
         workspace_options=core_groups.list_group_workspaces(record["group_id"], "ark"),
         active_workspace_id=record["id"],
     )
-
-
-@bp.post("/save")
-def save():
-    workspace_id = request.form.get("workspace")
-    user, workspace, record = ark_workspace(workspace_id)
-
-    if not user:
-        return redirect("/login")
-
-    relpath = request.form.get("path", "note/inbox.txt")
-    content = request.form.get("content", "")
-
-    if sync_state.is_conflicted(record["id"]):
-        # Don't write into a workspace mid-resolution - the typed content
-        # is still safe in the browser's textarea either way (autosave
-        # just retries later), this only refuses to persist it yet.
-        return {"ok": False, "error": CONFLICT_MESSAGE}, 409
-
-    # A save implies an active edit session - (re)claim the lock as a
-    # heartbeat so it doesn't go stale mid-edit. Doesn't block the save
-    # itself on lock ownership: this is a small trusted-group tool, not an
-    # adversarial one, and refusing to persist someone's typed text because
-    # of a lock race would be worse than the rare double-edit it prevents.
-    core_locks.acquire(record["id"], relpath, user["id"])
-
-    target = safe_file(workspace, relpath)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(content, encoding="utf-8")
-
-    auto_sync(workspace, record["id"], force=True)
-
-    qs = urlencode({"file": relpath, **({"workspace": workspace_id} if workspace_id else {})})
-
-    return redirect(f"/apps/ark/?{qs}")
-
-
-@bp.post("/lock")
-def lock_file():
-    user = current_user()
-
-    if not user:
-        return {"ok": False}, 401
-
-    workspace_id = request.form.get("workspace", type=int)
-    path = request.form.get("path", "")
-
-    if not workspace_id or not path:
-        return {"ok": False}, 400
-
-    ok, holder_name = core_locks.acquire(workspace_id, path, user["id"])
-
-    if ok:
-        return {"ok": True}
-
-    return {"ok": False, "holder": holder_name}, 409
-
-
-@bp.post("/unlock")
-def unlock_file():
-    user = current_user()
-
-    if not user:
-        return {"ok": False}, 401
-
-    workspace_id = request.form.get("workspace", type=int)
-    path = request.form.get("path", "")
-
-    if workspace_id and path:
-        core_locks.release(workspace_id, path, user["id"])
-
-    return {"ok": True}
 
 
 @bp.route("/conflicts", methods=["GET", "POST"])

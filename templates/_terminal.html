@@ -60,7 +60,7 @@
 
 {% for record in records %}
 
-<a class="record-card" href="/apps/ark/?file={{ record.path }}&find={{ (record.preview or record.title or '') | urlencode }}">
+<a class="record-card" href="/apps/editor/?file={{ record.path }}&workspace={{ active_workspace_id }}&app=Ark&home=/apps/ark/&find={{ (record.preview or record.title or '') | urlencode }}">
 
 <div class="record-head">
 <span class="record-type record-type-{{ record.type }}">{{ record.type }}</span>
