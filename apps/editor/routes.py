@@ -40,15 +40,6 @@ def editor_workspace(workspace_id):
     return user, workspace, record
 
 
-def git_dir_for(record):
-    """The actual git repo root (the app's own data folder) - separate
-    from editor_workspace()'s wider workspace root, since auto_sync only
-    knows how to operate on a real git working directory, not an
-    arbitrary folder one level above it."""
-
-    return core_workspaces.path(record["group_slug"], record["app"], record["name"])
-
-
 def safe_file(workspace, relpath):
     """Mirrors apps.files.routes.safe_path's containment + dotfile guard -
     Editor's root is now the true workspace root (see editor_workspace()),
@@ -82,7 +73,7 @@ def view():
     if not user:
         return redirect("/login")
 
-    auto_sync(git_dir_for(record), record["id"])
+    auto_sync(workspace, record["id"])
     conflict = sync_state.is_conflicted(record["id"])
 
     target = safe_file(workspace, file_path)
@@ -149,7 +140,7 @@ def save():
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content, encoding="utf-8")
 
-    auto_sync(git_dir_for(record), record["id"], force=True)
+    auto_sync(workspace, record["id"], force=True)
 
     qs = urlencode({
         "file": relpath,

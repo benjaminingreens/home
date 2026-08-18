@@ -62,6 +62,14 @@ def ark_workspace(workspace_id=None):
     return user, workspace, record
 
 
+def git_root_for(record):
+    """git's scope is the whole workspace root, one level above the app's
+    own data folder (ark_workspace()'s `workspace`) that ark's own
+    commands run against - see core.workspaces.hoist_git_to_root for why."""
+
+    return core_workspaces.root(record["group_slug"], "ark", record["name"])
+
+
 def workspace_ready(workspace):
     return (workspace / ".ark").exists()
 
@@ -127,7 +135,7 @@ def home():
     # no-op if unlinked, offline, or already flagged conflicted. Throttled
     # (see core.sync_state) so a workspace only actually gets checked once
     # per few seconds, no matter how many people load this page at once.
-    auto_sync(workspace, record["id"])
+    auto_sync(git_root_for(record), record["id"])
     conflict = sync_state.is_conflicted(record["id"])
 
     records = []
@@ -174,7 +182,7 @@ def home():
         app_label=NAME,
         app_home="/apps/ark/",
         apps=[],
-        git_linked=is_git_linked(workspace),
+        git_linked=is_git_linked(git_root_for(record)),
         workspace_options=core_groups.list_group_workspaces(record["group_id"], "ark"),
         active_workspace_id=record["id"],
     )
@@ -236,7 +244,7 @@ def workspace_setup():
                 error = str(e)
 
     ready = workspace_ready(workspace)
-    linked = is_git_linked(workspace)
+    linked = is_git_linked(git_root_for(record))
     bare_started = core_workspaces.has_bare_repo(group_slug, "ark", workspace_name)
 
     if not ready:
@@ -274,10 +282,16 @@ def workspace_setup():
 @bp.route("/conflicts", methods=["GET", "POST"])
 def conflicts():
     workspace_id = request.values.get("workspace")
-    user, workspace, record = ark_workspace(workspace_id)
+    user, _, record = ark_workspace(workspace_id)
 
     if not user:
         return redirect("/login")
+
+    # Conflict state is git's - resolving/reading conflicted files works
+    # against the git root, not ark's own narrower data folder (see
+    # git_root_for), since conflicted paths (e.g. "ark/note/foo.md") are
+    # relative to the root now.
+    workspace = git_root_for(record)
 
     state = sync_state.get(record["id"])
 

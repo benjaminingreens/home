@@ -34,7 +34,7 @@ def current_remote(group_slug, app, workspace_name):
     necessarily one HOME provisioned itself (e.g. set up by hand), so it
     may not live at the conventional bare_repo_path()."""
 
-    workspace = path(group_slug, app, workspace_name)
+    workspace = root(group_slug, app, workspace_name)
 
     result = subprocess.run(
         ["git", "-C", str(workspace), "remote", "get-url", "origin"],
@@ -83,10 +83,14 @@ def start_link(group_slug, app, workspace_name):
 
 def finish_link(group_slug, app, workspace_name):
     """Step 2: once the user has pushed to the bare repo, clone it into
-    the live workspace path."""
+    the live workspace path. The pushed content is the app's raw external
+    data (e.g. note/todo/evnt at the top level) - clone it into the app's
+    own data folder first, same shape as always, then hoist .git up to the
+    workspace root so this workspace's git scope matches every other
+    workspace's (see hoist_git_to_root)."""
 
     bare = bare_repo_path(group_slug, app, workspace_name)
-    workspace = path(group_slug, app, workspace_name)
+    data_dir = path(group_slug, app, workspace_name)
 
     result = subprocess.run(
         ["git", "-C", str(bare), "show-ref", "--heads"],
@@ -97,16 +101,20 @@ def finish_link(group_slug, app, workspace_name):
     if not result.stdout.strip():
         raise ValueError("nothing has been pushed to the server yet")
 
-    workspace.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["git", "clone", str(bare), str(workspace)], check=True)
+    data_dir.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "clone", str(bare), str(data_dir)], check=True)
+
+    hoist_git_to_root(group_slug, app, workspace_name)
 
 
 def enable_git(group_slug, app, workspace_name):
     """Wire up git backing for a workspace that already exists on the
     server but isn't linked to anywhere else yet, so a local copy can be
-    cloned down elsewhere."""
+    cloned down elsewhere. Rooted at the workspace root (not just the
+    app's own data folder), so anything else sitting there - other apps'
+    data, legacy content - is in scope from the very first commit."""
 
-    workspace = path(group_slug, app, workspace_name)
+    workspace = root(group_slug, app, workspace_name)
 
     if (workspace / ".git").exists():
         raise ValueError("already git-linked")
@@ -128,3 +136,36 @@ def enable_git(group_slug, app, workspace_name):
     _git("push", "-u", "origin", "main", cwd=workspace)
 
     return remote_url(group_slug, app, workspace_name)
+
+
+def hoist_git_to_root(group_slug, app, workspace_name):
+    """Move a .git that lives at <root>/<app>/ up to <root>/ itself,
+    widening git's scope from just the app's own data folder to the whole
+    workspace root - so anything sitting beside <app>/ (other apps' data,
+    legacy content that predates this convention) gets synced too,
+    instead of being silently left out.
+
+    The index still lists paths relative to the old root (e.g.
+    "note/foo.md"), so one add-A/commit re-adds everything relative to the
+    new root (e.g. "<app>/note/foo.md") - git represents this as a rename
+    when the content matches, so no history is lost, just one extra
+    "moved under <app>/" commit. Best-effort push: offline is fine, the
+    next auto_sync picks it up.
+
+    No-ops if there's nothing to hoist (already at the root, or never
+    git-linked at all) - safe to call unconditionally, including on every
+    boot for legacy workspaces (see core.storage's migration)."""
+
+    workspace_root = root(group_slug, app, workspace_name)
+    data_dir = workspace_root / app
+    old_git = data_dir / ".git"
+    new_git = workspace_root / ".git"
+
+    if new_git.exists() or not old_git.exists():
+        return
+
+    old_git.rename(new_git)
+
+    _git("add", "-A", cwd=workspace_root)
+    _git("commit", "-m", "restructure: widen git scope to the workspace root", cwd=workspace_root)
+    _git("push", cwd=workspace_root)

@@ -425,20 +425,21 @@ def browse():
         workspace_id = request.args.get("workspace")
         cwd = request.args.get("path", "")
 
-    user, git_dir, record = ark_workspace(workspace_id)
+    user, _, record = ark_workspace(workspace_id)
 
     if not user:
         return redirect("/login")
 
     # Files browses the true workspace root - one level above the app's
-    # own data folder (git_dir, e.g. .../ark/) that auto_sync/is_git_linked
-    # actually operate on - so the app's folder itself shows up as a
+    # own data folder (e.g. .../ark/), so that folder shows up as a
     # regular, clickable entry instead of being silently skipped past.
+    # git's scope is this same root (see core.workspaces.hoist_git_to_root),
+    # so auto_sync/is_git_linked operate directly on `workspace` too.
     workspace = core_workspaces.root(record["group_slug"], record["app"], record["name"])
 
     # Opportunistic pull-and-push on every visit, same as Ark/Files'
     # shared workspace - see apps.ark.runner.auto_sync's docstring.
-    auto_sync(git_dir, record["id"])
+    auto_sync(workspace, record["id"])
     conflict = sync_state.is_conflicted(record["id"])
 
     message = ""
@@ -494,7 +495,7 @@ def browse():
                         )
 
                     if not is_error and first in MUTATING_COMMANDS:
-                        auto_sync(git_dir, record["id"], force=True)
+                        auto_sync(workspace, record["id"], force=True)
 
             else:
                 message, is_error = f"unknown command: {first}", True
@@ -529,7 +530,7 @@ def browse():
         app_label=NAME,
         app_home="/apps/files/",
         workspace_id=record["id"],
-        git_linked=is_git_linked(git_dir),
+        git_linked=is_git_linked(workspace),
         workspace_options=core_groups.list_group_workspaces(record["group_id"], "ark"),
         active_workspace_id=record["id"],
     )

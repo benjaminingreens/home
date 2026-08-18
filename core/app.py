@@ -111,7 +111,7 @@ def inject_topbar_context():
     # opened via a Documents link with ?workspace=X) passes its own
     # workspace_options/active_workspace_id to render_template(), which
     # takes precedence over these defaults for that one request.
-    workspace_path = core_workspaces.path(active["group_slug"], "ark", active["name"])
+    workspace_path = core_workspaces.root(active["group_slug"], "ark", active["name"])
 
     return {
         "current_user_ctx": user,
