@@ -21,6 +21,8 @@ priority 1 because any real answer here changes where data physically lives on d
 
 --- priority 3 ---
 
+todo: Editor (see history below) should be a standalone app accessible in its own right, not just a HIDDEN hop reachable only via a file=/workspace= link from Ark or Files. Flagged as a real gap right after Editor shipped - needs its own entry in the launcher/app-switcher and a sensible landing experience when opened with no file= param yet (browse to a file first? pick a workspace? unclear, not designed).
+
 todo: today ark only recognises files as its own within a dedicated ark repo (i.e. under a workspace's documents/ for an app=ark workspace) - anything outside that isn't treated as an ark file at all, regardless of extension. eventually: allow .ark-suffixed files to be recognised as ark files wherever they live, not just inside a dedicated ark repo - identified by the .ark extension itself rather than by location. distinct from the scrapped phase 2 flat-folder idea (see history below) - this is about where ark can find/recognise files, not about changing ark's own internal note/todo/evnt/yyyy/mm organisation inside a repo, which stays as decided. not scoped, exploratory.
 
 todo: basic comment-like syntax convention for plain text files, in service of a possible future where ark can extract records embedded inside other file types (e.g. a .py file carrying an inline todo record) - separate, further-out idea than the .ark-suffix one above, not decided on.
