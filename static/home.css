@@ -189,6 +189,15 @@ button {
     border-bottom: 1px solid var(--border-color, #222);
     font-size: 2rem;
     font-style: italic;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: var(--bg-color, #000);
+    transition: transform 0.2s ease;
+}
+
+.topbar.topbar-hidden {
+    transform: translateY(-100%);
 }
 
 body.editor .topbar {
@@ -232,6 +241,7 @@ body.editor .topbar {
     padding: 32px;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
 }
 
 .menu-overlay.hidden {
@@ -270,6 +280,11 @@ body.editor .topbar {
        overflow-y here would never actually kick in. */
     min-height: 0;
     overflow-y: auto;
+    /* Setting only overflow-y computes overflow-x to auto too (CSS
+       spec: an explicit non-visible value on one axis makes "visible"
+       on the other compute to "auto" instead) - without this the menu
+       became horizontally scrollable/pannable for no visible reason. */
+    overflow-x: hidden;
 }
 
 .menu-footer {
@@ -337,15 +352,25 @@ body.editor .topbar {
 
 .menu-group-summary {
     border-bottom: none;
+    display: flex;
+    align-items: baseline;
 }
 
 .menu-group-summary::before {
+    /* A hex escape like \2212 eats the space right after it as part of
+       the escape itself, not as literal content - use the real
+       characters instead of an escape so the trailing space survives. */
     content: "+ ";
     color: var(--fg-muted, #888);
 }
 
 .menu-group[open] .menu-group-summary::before {
-    content: "\2212 ";
+    content: "− ";
+}
+
+.menu-group-tick {
+    margin-left: auto;
+    color: #7fa8e2;
 }
 
 .menu-group-workspaces .menu-item {

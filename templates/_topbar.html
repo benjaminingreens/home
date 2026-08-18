@@ -3,9 +3,28 @@
 {% set _current_app = (nav_apps | selectattr('name', 'equalto', app_label) | list) %}
 {% set multiview_app = _current_app[0].multiview if _current_app else False %}
 
+{# The label should reflect whichever workspace this specific page is
+   actually showing (active_workspace_id - which a route like Files or
+   Ark overrides when it's rendering a non-active workspace via a
+   direct link), not just the user's global default - current_group/
+   current_workspace never get that override, so relying on them here
+   left the switcher's own label out of sync with the page's real
+   content. Falls back to current_group/current_workspace only if
+   active_workspace_id isn't found among the user's own workspaces,
+   which shouldn't happen. #}
+{% set ns = namespace(group_name=current_group.name, workspace_name=current_workspace.name) %}
+{% for g in user_groups %}
+{% for w in g.workspaces %}
+{% if w.id == active_workspace_id %}
+{% set ns.group_name = g.name %}
+{% set ns.workspace_name = w.name %}
+{% endif %}
+{% endfor %}
+{% endfor %}
+
 <nav class="topbar">
 <button type="button" class="topbar-seg topbar-app" onclick="openMenu('app')">{{ (app_label or "home") | lower }}</button>
-<button type="button" class="topbar-seg topbar-switcher" style="color: {{ current_user_ctx.accent_color }}" onclick="openMenu('workspace')">{% if multiview_app and multiview_selection %}multiple{% else %}{{ current_group.name | lower }}/{{ current_workspace.name | lower }}{% endif %}</button>
+<button type="button" class="topbar-seg topbar-switcher" style="color: {{ current_user_ctx.accent_color }}" onclick="openMenu('workspace')">{% if multiview_app and multiview_selection %}multiple{% else %}{{ ns.group_name | lower }}/{{ ns.workspace_name | lower }}{% endif %}</button>
 </nav>
 
 <div id="menu-app" class="menu-overlay hidden">
@@ -43,9 +62,10 @@
 
 {% for g in user_groups %}
 {% set g_has_extra = (g.workspaces | selectattr('id', 'in', multiview_selection) | list) if multiview_app else [] %}
-<details class="menu-group" data-search="{{ g.name | lower }}"{% if g.id == current_group.id or g_has_extra %} open{% endif %}>
+{% set g_has_selection = (g.id == current_group.id) or g_has_extra %}
+<details class="menu-group" data-search="{{ g.name | lower }}">
 
-<summary class="menu-item menu-group-summary">{{ g.name | lower }}</summary>
+<summary class="menu-item menu-group-summary">{{ g.name | lower }}{% if g_has_selection %}<span class="menu-group-tick">&check;</span>{% endif %}</summary>
 
 <div class="menu-group-workspaces">
 {% for w in g.workspaces %}
@@ -91,6 +111,12 @@ function markWorkspaceMenuDirty() {
 function openMenu(name) {
     if (name === 'workspace') {
         workspaceMenuDirty = false;
+
+        // Groups always start collapsed on a fresh open, regardless of
+        // how they were left last time.
+        document.querySelectorAll('#menu-workspace .menu-group').forEach(function (group) {
+            group.open = false;
+        });
     }
 
     document.getElementById('menu-' + name).classList.remove('hidden');
@@ -167,6 +193,30 @@ document.querySelectorAll('.menu-overlay').forEach(function (el) {
 document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') closeMenus();
 });
+
+(function () {
+    var topbar = document.querySelector('.topbar');
+
+    if (!topbar) return;
+
+    var lastY = window.scrollY;
+
+    window.addEventListener('scroll', function () {
+        var y = window.scrollY;
+
+        // Only roll up once past the topbar's own height, so the very
+        // first bit of scroll (still within the bar itself) doesn't hide
+        // it - and only on a real downward scroll, not a bounce/rubber-
+        // band wobble at the top on mobile.
+        if (y > lastY && y > topbar.offsetHeight) {
+            topbar.classList.add('topbar-hidden');
+        } else if (y < lastY) {
+            topbar.classList.remove('topbar-hidden');
+        }
+
+        lastY = y;
+    }, { passive: true });
+})();
 </script>
 
 {% endif %}
