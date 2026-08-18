@@ -21,15 +21,11 @@ priority 1 because any real answer here changes where data physically lives on d
 
 --- priority 3 ---
 
-todo: support file types beyond ark's .txt in a workspace - .md, .py, .tex, etc. three ideas floated, not decided between:
-  1. ark stays .txt/note-todo-evnt-only; other file types just live in the workspace and get browsed generically (by Files, phase 3 below) without ark parsing them.
-  2. ark extracts records from any text file and leaves the rest alone, so e.g. a .py file could carry an embedded todo record inline.
-  3. go further and put light structured metadata into any file type, so everything - not just ark files - can live flat and be searched by tag.
-  ties directly into phase 3 below and the "how does Documents interpret Ark's data without becoming Ark-coupled" question that was explicitly paused earlier.
+todo: rename Documents -> Files (phase 3 of the file-structure redesign; see history section below for phase 1/2). fully file-format-agnostic - Files never parses ark records, it just reads/writes plain text (and eventually other file types) like any generic file. it can browse into ark's files same as anything else in documents/ + media/, it just sees them as text, not records - that parsing stays exclusively inside the dedicated ark app. basic unix-like commands only (browse/filter/search, create/rename/move/delete) - no shell-style invocation of other apps. resolved: this is not blocked on the ark-file-recognition question below - that's about ark's own scope, not Files'.
 
-todo: basic comment-like syntax convention for plain text files, in service of the above.
+todo: today ark only recognises files as its own within a dedicated ark repo (i.e. under a workspace's documents/ for an app=ark workspace) - anything outside that isn't treated as an ark file at all, regardless of extension. eventually: allow .ark-suffixed files to be recognised as ark files wherever they live, not just inside a dedicated ark repo - identified by the .ark extension itself rather than by location. distinct from the scrapped phase 2 flat-folder idea (see history below) - this is about where ark can find/recognise files, not about changing ark's own internal note/todo/evnt/yyyy/mm organisation inside a repo, which stays as decided. not scoped, exploratory.
 
-todo: rename Documents -> Files (phase 3 of the file-structure redesign; see history section below for phase 1/2). generic display only, no ark-specific parsing - that stays in the dedicated ark app. browses documents/ + media/. basic unix-like commands only (browse/filter/search, maybe rename/move/delete) - no shell-style invocation of other apps.
+todo: basic comment-like syntax convention for plain text files, in service of a possible future where ark can extract records embedded inside other file types (e.g. a .py file carrying an inline todo record) - separate, further-out idea than the .ark-suffix one above, not decided on.
 
 todo: file editor as its own app ("Editor"), out of Ark's file view (apps/ark/templates/file.html). needs its own permission model - access control currently rides on Ark's group membership, which won't generalise once not every file is an ark file (see file editing permissions, below). most natural place for markdown rendering (priority 4) if that happens.
 
