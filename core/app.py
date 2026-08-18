@@ -11,7 +11,6 @@ from flask import (
     render_template,
     request,
     redirect,
-    abort,
 )
 
 from .storage import init
@@ -105,21 +104,34 @@ def inject_topbar_context():
     theme = theme_colors(bg_color)
 
     # Workspace switching is a global concept, not an Ark-only one - every
-    # page's topbar shows and can switch it, even pages (Chat, Settings,
-    # the launcher) that never otherwise touch workspaces directly. A
-    # route rendering its own view of a *specific* workspace (e.g. Ark
-    # opened via a Documents link with ?workspace=X) passes its own
-    # workspace_options/active_workspace_id to render_template(), which
-    # takes precedence over these defaults for that one request.
+    # page's bottom bar shows and can switch it, even pages (Chat,
+    # Settings, the launcher) that never otherwise touch workspaces
+    # directly. The bottom bar's switcher always lists every group/
+    # workspace the user has, regardless of which page it's opened from -
+    # a route rendering its own view of a *specific* non-active workspace
+    # (e.g. Ark opened via a Files link with ?workspace=X) only needs to
+    # override active_workspace_id, to highlight the right one, since
+    # resolve_workspace() already guarantees that workspace's group is
+    # one of the user's own (so it's already in user_groups below).
     workspace_path = core_workspaces.root(active["group_slug"], "ark", active["name"])
+
+    user_groups = [
+        {
+            "id": g["id"],
+            "name": g["name"],
+            "is_personal": g["is_personal"],
+            "workspaces": [dict(w) for w in core_groups.list_group_workspaces(g["id"], "ark")],
+        }
+        for g in core_groups.list_user_groups(user["id"])
+    ]
 
     return {
         "current_user_ctx": user,
         "current_group": {"id": active["group_id"], "name": active["group_name"]},
         "current_workspace": {"id": active["id"], "name": active["name"]},
-        "user_groups": core_groups.list_user_groups(user["id"]),
-        "workspace_options": core_groups.list_group_workspaces(active["group_id"], "ark"),
+        "user_groups": user_groups,
         "active_workspace_id": active["id"],
+        "multiview_selection": set(core_groups.list_multiview_selection(user["id"])),
         "git_linked": is_git_linked(workspace_path),
         "nav_apps": APPS,
         "bg_color": bg_color,
@@ -128,24 +140,6 @@ def inject_topbar_context():
         "fg_faint_color": theme["fg_faint"],
         "border_color": theme["border"],
     }
-
-
-@app.post("/group")
-def switch_group():
-    user = current_user()
-
-    if not user:
-        return redirect("/login")
-
-    group_id = int(request.form.get("group_id", 0))
-
-    if not core_groups.require_active_member(user["id"], group_id):
-        abort(403)
-
-    workspace = core_groups.get_or_create_group_default_workspace(group_id, "ark", user["id"])
-    core_groups.set_active_workspace(user["id"], workspace["id"])
-
-    return redirect(request.referrer or "/")
 
 
 @app.get("/apps")

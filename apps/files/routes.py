@@ -4,7 +4,6 @@ from pathlib import Path
 
 from flask import render_template, request, redirect, abort, url_for
 
-from core import groups as core_groups
 from core import sync_state
 from core import workspaces as core_workspaces
 
@@ -312,6 +311,5 @@ def browse():
         app_home="/apps/files/",
         workspace_id=record["id"],
         git_linked=is_git_linked(workspace),
-        workspace_options=core_groups.list_group_workspaces(record["group_id"], "ark"),
         active_workspace_id=record["id"],
     )

@@ -2,10 +2,6 @@
 
 <nav class="topbar">
 <button type="button" class="topbar-seg topbar-app" onclick="openMenu('app')">{{ (app_label or "home") | lower }}</button>
-<span class="topbar-sep">/</span>
-<button type="button" class="topbar-seg topbar-group" style="color: {{ current_user_ctx.accent_color }}" onclick="openMenu('group')">{{ current_group.name | lower }}</button>
-<span class="topbar-sep">/</span>
-<button type="button" class="topbar-seg topbar-workspace" onclick="openMenu('workspace')">{{ current_workspace.name | lower }}</button>
 </nav>
 
 <div id="menu-app" class="menu-overlay hidden">
@@ -28,101 +24,5 @@
 </div>
 
 </div>
-
-<div id="menu-group" class="menu-overlay hidden">
-
-<div class="menu-header">
-<button type="button" class="menu-close" onclick="closeMenus()" aria-label="close menu">&times;</button>
-<div class="menu-title">select group</div>
-<input type="text" class="menu-search" placeholder="search..." autocomplete="off" oninput="filterMenu('group', this.value)">
-</div>
-
-<div class="menu-list">
-{% for g in user_groups %}
-<form method="post" action="/group" class="menu-form">
-<input type="hidden" name="group_id" value="{{ g.id }}">
-<button type="submit" class="menu-item{{ ' active' if g.id == current_group.id }}" data-search="{{ g.name | lower }}">{{ g.name | lower }}</button>
-</form>
-{% endfor %}
-</div>
-
-<div class="menu-footer">
-<a href="/" class="menu-item menu-home">go home</a>
-<a href="/logout" class="menu-item menu-logout">log out of {{ current_user_ctx.username | lower }}</a>
-</div>
-
-</div>
-
-<div id="menu-workspace" class="menu-overlay hidden">
-
-<div class="menu-header">
-<button type="button" class="menu-close" onclick="closeMenus()" aria-label="close menu">&times;</button>
-<div class="menu-title">select workspace</div>
-<input type="text" class="menu-search" placeholder="search..." autocomplete="off" oninput="filterMenu('workspace', this.value)">
-</div>
-
-<div class="menu-list">
-{% for w in workspace_options %}
-<form method="post" action="/apps/ark/workspaces" class="menu-form">
-<input type="hidden" name="workspace_id" value="{{ w.id }}">
-<button type="submit" class="menu-item{{ ' active' if w.id == active_workspace_id }}" data-search="{{ w.name | lower }}">{{ w.name | lower }}</button>
-</form>
-{% endfor %}
-{% if not git_linked %}
-<a href="/apps/ark/workspace" class="menu-item" data-search="link this workspace">link this workspace</a>
-{% endif %}
-</div>
-
-<div class="menu-footer">
-<a href="/" class="menu-item menu-home">go home</a>
-<a href="/logout" class="menu-item menu-logout">log out of {{ current_user_ctx.username | lower }}</a>
-</div>
-
-</div>
-
-<script>
-function openMenu(name) {
-    document.getElementById('menu-' + name).classList.remove('hidden');
-}
-
-function filterMenu(name, token) {
-    token = token.trim().toLowerCase();
-
-    document.querySelectorAll('#menu-' + name + ' .menu-list [data-search]').forEach(function (el) {
-        var match = !token || el.dataset.search.indexOf(token) !== -1;
-        el.classList.toggle('hidden', !match);
-    });
-}
-
-function closeMenus() {
-    document.querySelectorAll('.menu-overlay').forEach(function (el) {
-        el.classList.add('hidden');
-    });
-
-    // Opening a menu blurs the query box (focus moves to the button that
-    // opened it) - closing it should give focus back, or the cursor's
-    // custom mirror is left stuck in its unfocused/invisible state even
-    // though the terminal screen behind the menu never actually changed.
-    var q = document.getElementById('query');
-    var f = document.getElementById('field');
-
-    if (q && f) {
-        q.focus();
-        f.classList.add('focused');
-
-        if (typeof renderMirror === 'function') {
-            renderMirror();
-        }
-    }
-}
-document.querySelectorAll('.menu-overlay').forEach(function (el) {
-    el.addEventListener('click', function (e) {
-        if (e.target === el) closeMenus();
-    });
-});
-document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') closeMenus();
-});
-</script>
 
 {% endif %}

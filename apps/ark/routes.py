@@ -1,3 +1,5 @@
+import shlex
+
 from flask import render_template, request, redirect, abort
 
 from core.auth import current_user
@@ -6,7 +8,7 @@ from core import groups as core_groups
 from core import sync_state
 
 from . import bp, NAME
-from .runner import install, run, is_git_linked, auto_sync, theirs_content, resolve_conflict
+from .runner import install, run, is_git_linked, auto_sync, theirs_content, resolve_conflict, known_commands
 
 
 def resolve_active_workspace(user):
@@ -119,6 +121,93 @@ def process(workspace, workspace_id, query):
     return [], "no results", False, None
 
 
+def multiview_workspaces(user, primary_record):
+    """Every workspace a multiview query should run against: the active
+    ("primary") one, plus whatever's pinned via the bottom bar's
+    checkbox-style switcher (see core.groups.list_multiview_selection) -
+    filtered to workspaces the user is still an active member of, in case
+    a pin outlived their membership. Order matters: primary first, so
+    process_multiview's first-error/first-stdout fallback favors it."""
+
+    ids = [primary_record["id"]]
+
+    for workspace_id in core_groups.list_multiview_selection(user["id"]):
+        if workspace_id not in ids:
+            ids.append(workspace_id)
+
+    records = []
+
+    for workspace_id in ids:
+        record = core_groups.get_workspace(workspace_id)
+
+        if record and core_groups.require_active_member(user["id"], record["group_id"]):
+            records.append(record)
+
+    return records
+
+
+def process_multiview(workspace_records, query):
+    """Same contract as process(), but runs a read query across several
+    workspaces at once and merges the results - each tagged with its
+    origin group/workspace (see _terminal.html) so a mixed result list
+    stays legible, the same way the old Documents app labeled entries by
+    origin workspace.
+
+    Mutating commands (add/tidy/edit/...) are refused here rather than
+    fanned out to every selected workspace: HOME deliberately doesn't
+    parse Ark's own command semantics beyond knowing a command *name*
+    (see known_commands()), so it has no reliable way to know which of
+    them are safe to run more than once, in more than one place, from a
+    single button press. Narrowing to one workspace (unchecking the
+    others) always gets you back to the normal single-workspace path."""
+
+    query = query.strip()
+
+    if not query:
+        return [], "", False, None
+
+    tokens = shlex.split(query)
+
+    if tokens and tokens[0].lower() in known_commands():
+        return (
+            [],
+            "commands need a single active workspace - unpin the extra ones first",
+            True,
+            None,
+        )
+
+    records = []
+    stdout = ""
+    error = ""
+
+    for record in workspace_records:
+        workspace = core_workspaces.path(record["group_slug"], "ark", record["name"])
+        found, out, err = run(workspace, query)
+
+        if err:
+            error = error or err
+            continue
+
+        for r in found:
+            r["origin_group"] = record["group_name"]
+            r["origin_workspace"] = record["name"]
+            r["origin_workspace_id"] = record["id"]
+
+        records.extend(found)
+        stdout = stdout or out
+
+    if records:
+        return records, "", False, None
+
+    if error:
+        return [], error, True, None
+
+    if stdout:
+        return [], stdout, False, None
+
+    return [], "no results", False, None
+
+
 @bp.route("/", methods=["GET", "POST"])
 def home():
     user, workspace, record = ark_workspace()
@@ -138,6 +227,9 @@ def home():
     auto_sync(git_root_for(record), record["id"])
     conflict = sync_state.is_conflicted(record["id"])
 
+    multiview_records = multiview_workspaces(user, record)
+    is_multiview = len(multiview_records) > 1
+
     records = []
     query = ""
     message = ""
@@ -151,7 +243,8 @@ def home():
 
             # "/" is reserved for the two universal HOME commands, valid
             # from any app - everything else (including Ark's own real
-            # command syntax) is bare, handled by process() below.
+            # command syntax) is bare, handled by process()/process_multiview()
+            # below.
             if query.startswith("/"):
                 command = query[1:].strip().lower()
 
@@ -163,6 +256,8 @@ def home():
                 else:
                     message, is_error = f"unknown command: /{command}", True
 
+            elif is_multiview:
+                records, message, is_error, help_commands = process_multiview(multiview_records, query)
             else:
                 records, message, is_error, help_commands = process(workspace, record["id"], query)
 
@@ -183,16 +278,54 @@ def home():
         app_home="/apps/ark/",
         apps=[],
         git_linked=is_git_linked(git_root_for(record)),
-        workspace_options=core_groups.list_group_workspaces(record["group_id"], "ark"),
         active_workspace_id=record["id"],
     )
 
 
 @bp.post("/workspaces")
 def switch_workspace():
-    """The topbar dropdown posts here. Creating workspaces lives in
-    Settings, next to the group it belongs to - this endpoint only
-    switches which existing one the terminal is pointed at."""
+    """The bottom bar's group/workspace switcher posts here, from any
+    app's page (see inject_topbar_context) - creating workspaces lives in
+    Settings, next to the group it belongs to; this endpoint only
+    switches which existing one is active, then returns to wherever the
+    switch was made from. workspace_id switches to a specific existing
+    workspace (the normal case); group_id is the switcher's fallback for
+    a group with no workspace yet, lazily creating its 'default' one -
+    same lazy-creation convention as a personal group's own default
+    workspace (see resolve_active_workspace)."""
+
+    user = current_user()
+
+    if not user:
+        return redirect("/login")
+
+    workspace_id = request.form.get("workspace_id")
+    group_id = request.form.get("group_id")
+
+    try:
+        if workspace_id:
+            core_groups.set_active_workspace(user["id"], int(workspace_id))
+        elif group_id:
+            record = core_groups.get_or_create_group_default_workspace(int(group_id), "ark", user["id"])
+            core_groups.set_active_workspace(user["id"], record["id"])
+    except (ValueError, PermissionError):
+        pass
+
+    return redirect(request.referrer or "/apps/ark/")
+
+
+@bp.post("/multiview")
+def toggle_multiview():
+    """The bottom bar's checkbox-style switcher (multiview apps only -
+    see core.apps.load_apps' MULTIVIEW flag) posts here to pin or unpin
+    one extra workspace on top of the active one - see
+    multiview_workspaces() for how the two combine into a query's actual
+    target set.
+
+    Unpinning the active workspace itself promotes another pinned one to
+    active instead (there must always be exactly one active workspace -
+    every other app depends on it), rather than leaving multiview with
+    no primary at all."""
 
     user = current_user()
 
@@ -200,11 +333,29 @@ def switch_workspace():
         return redirect("/login")
 
     try:
-        core_groups.set_active_workspace(user["id"], int(request.form.get("workspace_id", 0)))
+        workspace_id = int(request.form.get("workspace_id", 0))
+        selected = request.form.get("selected") == "1"
+        record = core_groups.get_workspace(workspace_id)
+
+        if not record or not core_groups.require_active_member(user["id"], record["group_id"]):
+            raise PermissionError("not a member of this workspace's group")
+
+        if selected:
+            core_groups.set_multiview_selection(user["id"], workspace_id, True)
+        else:
+            core_groups.set_multiview_selection(user["id"], workspace_id, False)
+
+            if workspace_id == user["active_workspace_id"]:
+                remaining = core_groups.list_multiview_selection(user["id"])
+
+                if remaining:
+                    promoted = remaining[0]
+                    core_groups.set_active_workspace(user["id"], promoted)
+                    core_groups.set_multiview_selection(user["id"], promoted, False)
     except (ValueError, PermissionError):
         pass
 
-    return redirect("/apps/ark/")
+    return redirect(request.referrer or "/apps/ark/")
 
 
 @bp.route("/workspace", methods=["GET", "POST"])
@@ -274,7 +425,6 @@ def workspace_setup():
         error=error,
         message=message,
         workspace_label=f"{record['group_name']} / {record['name']}",
-        workspace_options=core_groups.list_group_workspaces(record["group_id"], "ark"),
         active_workspace_id=record["id"],
     )
 

@@ -2,6 +2,7 @@ from flask import Blueprint
 
 NAME = "Ark"
 DESCRIPTION = "Personal knowledge repository"
+MULTIVIEW = True
 
 bp = Blueprint(
     "ark",

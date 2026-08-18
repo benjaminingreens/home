@@ -23,6 +23,13 @@ def init():
         if "owner" in old_workspace_columns:
             con.execute("DROP TABLE workspaces")
 
+        # workspace_visibility backed Documents' old cross-workspace merge
+        # toggle - dead since Documents was deleted (see todos.txt phase 3),
+        # replaced by multiview_selection below (opt-in, not opt-out, and
+        # not tied to one specific app's deleted feature). Drop it if an
+        # older database still has it.
+        con.execute("DROP TABLE IF EXISTS workspace_visibility")
+
         con.executescript("""
 
         CREATE TABLE IF NOT EXISTS users (
@@ -77,13 +84,11 @@ def init():
 
         );
 
-        CREATE TABLE IF NOT EXISTS workspace_visibility (
+        CREATE TABLE IF NOT EXISTS multiview_selection (
 
             user_id INTEGER NOT NULL,
 
             workspace_id INTEGER NOT NULL,
-
-            visible INTEGER NOT NULL DEFAULT 1,
 
             PRIMARY KEY (user_id, workspace_id)
 

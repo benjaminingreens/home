@@ -31,6 +31,7 @@ def load_apps(app):
             "description": getattr(module, "DESCRIPTION", ""),
             "help_intro": getattr(module, "HELP_INTRO", ""),
             "commands": getattr(module, "COMMANDS", []),
+            "multiview": getattr(module, "MULTIVIEW", False),
         })
 
     REGISTRY[:] = loaded

@@ -182,23 +182,34 @@ button {
 .topbar {
     display: flex;
     align-items: baseline;
-    justify-content: flex-start;
+    justify-content: space-between;
     gap: 10px;
     margin-bottom: var(--section-gap);
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-color, #222);
     font-size: 2rem;
     font-style: italic;
 }
 
-.topbar-sep {
-    color: var(--fg-faint, #555);
-    font-style: normal;
+.bottombar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: var(--section-gap);
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color, #222);
+    font-size: 2rem;
+    font-style: italic;
 }
 
-body.editor .topbar {
+body.editor .topbar,
+body.editor .bottombar {
     display: none;
 }
 
-.topbar-seg {
+.topbar-seg,
+.bottombar-switcher {
     border: none;
     background: none;
     padding: 0;
@@ -213,15 +224,17 @@ body.editor .topbar {
     color: #7fe28a;
 }
 
-.topbar-group {
+.bottombar-user {
+    color: var(--fg-muted, #888);
+    font-style: italic;
+}
+
+.bottombar-switcher {
     color: var(--fg-color, #fff);
 }
 
-.topbar-workspace {
-    color: #ffb347;
-}
-
-.topbar-seg:hover {
+.topbar-seg:hover,
+.bottombar-switcher:hover {
     text-decoration: underline;
 }
 
@@ -323,6 +336,14 @@ body.editor .topbar {
 
 .menu-logout {
     border-bottom: none;
+}
+
+.menu-stage.hidden {
+    display: none;
+}
+
+.menu-back {
+    color: var(--fg-muted, #888);
 }
 
 .menu-close {
@@ -689,6 +710,16 @@ body.editing #field {
     color: var(--fg-color, #fff);
 }
 
+.record-origin {
+    /* Only present on a merged multiview result (several workspaces'
+       results shown together) - marks which one this one came from, the
+       same way the old Documents app labeled entries by origin
+       workspace. */
+    font-size: 0.7em;
+    font-style: italic;
+    color: var(--fg-muted, #888);
+}
+
 .record-preview {
     margin-top: 4px;
     color: var(--fg-muted, #aaa);
@@ -813,7 +844,8 @@ body.chat {
     flex-direction: column;
 }
 
-body.chat .topbar {
+body.chat .topbar,
+body.chat .bottombar {
     flex: 0 0 auto;
 }
 
@@ -1112,7 +1144,8 @@ body.chat .topbar {
         --section-gap: 32px;
     }
 
-    .topbar {
+    .topbar,
+    .bottombar {
         gap: 8px;
         font-size: 1.3rem;
     }

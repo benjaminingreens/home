@@ -61,12 +61,15 @@
 {% for record in records %}
 
 {# record.path is relative to ark's own data folder (core.workspaces.path()) - Editor's
-   root is the workspace root one level above that, so it needs the "ark/" prefix. #}
-<a class="record-card" href="/apps/editor/?file=ark/{{ record.path }}&workspace={{ active_workspace_id }}&app=Ark&home=/apps/ark/&find={{ (record.preview or record.title or '') | urlencode }}">
+   root is the workspace root one level above that, so it needs the "ark/" prefix.
+   record.origin_workspace_id is only set for a merged multiview result (see
+   apps.ark.routes.process_multiview) - it isn't necessarily active_workspace_id. #}
+<a class="record-card" href="/apps/editor/?file=ark/{{ record.path }}&workspace={{ record.origin_workspace_id or active_workspace_id }}&app=Ark&home=/apps/ark/&find={{ (record.preview or record.title or '') | urlencode }}">
 
 <div class="record-head">
 <span class="record-type record-type-{{ record.type }}">{{ record.type }}</span>
 {% if record.title %}<span class="record-title">{{ record.title }}</span>{% endif %}
+{% if record.origin_workspace %}<span class="record-origin">{{ record.origin_group | lower }}/{{ record.origin_workspace | lower }}</span>{% endif %}
 </div>
 
 {% if record.preview %}

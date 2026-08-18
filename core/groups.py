@@ -242,9 +242,12 @@ def get_or_create_default_workspace(user_id, app):
 
 def get_or_create_group_default_workspace(group_id, app, creator_id):
     """First workspace in this group for `app`, creating a 'default' one
-    if none exist yet. Used when switching the topbar's group dropdown -
-    unlike get_or_create_default_workspace, group_id is explicit rather
-    than derived from the user's personal group."""
+    if none exist yet. A brand-new shared group has no workspace at all
+    until someone explicitly creates one (Settings' "create workspace"
+    form does this for the general case) - this backs the bottom bar's
+    "create default workspace" fallback that appears in the switcher when
+    a group has nothing to switch into yet, so picking that group isn't a
+    dead end."""
 
     existing = list_group_workspaces(group_id, app)
 
@@ -254,52 +257,32 @@ def get_or_create_group_default_workspace(group_id, app, creator_id):
     return create_workspace_record(group_id, app, "default", creator_id)
 
 
-def list_visible_workspaces(user_id, app):
+def list_multiview_selection(user_id):
+    """Extra workspace ids a user has pinned for a multiview app, on top
+    of whichever workspace is their single "active" one - see
+    apps.ark.routes.multiview_workspaces() for how the two combine."""
+
     with connect() as con:
-        return con.execute(
-            """
-            SELECT w.*, g.slug AS group_slug, g.name AS group_name
-            FROM workspaces w
-            JOIN groups g ON g.id = w.group_id
-            JOIN group_members m ON m.group_id = g.id
-            LEFT JOIN workspace_visibility v
-                ON v.workspace_id = w.id AND v.user_id = ?
-            WHERE m.user_id = ? AND m.status = 'active' AND w.app = ?
-            AND (v.visible IS NULL OR v.visible = 1)
-            ORDER BY g.is_personal DESC, g.name, w.name
-            """,
-            (user_id, user_id, app),
+        rows = con.execute(
+            "SELECT workspace_id FROM multiview_selection WHERE user_id=?",
+            (user_id,),
         ).fetchall()
 
+    return [row["workspace_id"] for row in rows]
 
-def list_all_workspaces_with_visibility(user_id, app):
+
+def set_multiview_selection(user_id, workspace_id, selected):
     with connect() as con:
-        return con.execute(
-            """
-            SELECT w.*, g.slug AS group_slug, g.name AS group_name,
-                   COALESCE(v.visible, 1) AS visible
-            FROM workspaces w
-            JOIN groups g ON g.id = w.group_id
-            JOIN group_members m ON m.group_id = g.id
-            LEFT JOIN workspace_visibility v
-                ON v.workspace_id = w.id AND v.user_id = ?
-            WHERE m.user_id = ? AND m.status = 'active' AND w.app = ?
-            ORDER BY g.is_personal DESC, g.name, w.name
-            """,
-            (user_id, user_id, app),
-        ).fetchall()
-
-
-def set_workspace_visibility(user_id, workspace_id, visible):
-    with connect() as con:
-        con.execute(
-            """
-            INSERT INTO workspace_visibility (user_id, workspace_id, visible)
-            VALUES (?, ?, ?)
-            ON CONFLICT(user_id, workspace_id) DO UPDATE SET visible=excluded.visible
-            """,
-            (user_id, workspace_id, int(visible)),
-        )
+        if selected:
+            con.execute(
+                "INSERT OR IGNORE INTO multiview_selection (user_id, workspace_id) VALUES (?, ?)",
+                (user_id, workspace_id),
+            )
+        else:
+            con.execute(
+                "DELETE FROM multiview_selection WHERE user_id=? AND workspace_id=?",
+                (user_id, workspace_id),
+            )
 
 
 def set_active_workspace(user_id, workspace_id):
