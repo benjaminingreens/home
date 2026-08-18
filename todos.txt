@@ -53,6 +53,8 @@ todo: build a calendar app, linking to a workspace's ark evnt records.
 
 todo: build a gantt view for todos - needs real start/duration data first; today timescales default purely off priority (!), and todos have no start-date concept. ark already has % (deadline) and >/< (evnt start/end).
 
+todo: native app suite (iOS/Android, downloadable from the app stores) for the core apps - chat, files, editor, etc. - so people can interact with a workspace from a phone, not just a browser. sign-in flow: enter the server's domain, then username/password, same as the browser today. the browser version stays available regardless - this is an additional client, not a replacement. big, not scoped yet (how much is shared UI/logic vs native per-platform, which apps are "core" enough to get one, etc.).
+
 todo: build a "postbox" app. not scoped.
 
 todo: a suite of office-style apps. not scoped, and in real tension with homeapp's plain-text/minimal philosophy - worth being honest about that before sinking time into it.
