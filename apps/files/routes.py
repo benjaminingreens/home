@@ -6,6 +6,7 @@ from flask import render_template, request, redirect, abort, url_for
 
 from core import groups as core_groups
 from core import sync_state
+from core import workspaces as core_workspaces
 
 from . import bp, NAME
 from apps.ark.routes import ark_workspace
@@ -34,8 +35,9 @@ def safe_path(workspace, relpath):
     """Resolves relpath under workspace, mirroring apps.ark.routes'
     safe_file containment check, plus a guard Files specifically needs:
     reject any dotfile/dir segment (.ark, .git, any future dotfile) -
-    those live directly inside the same per-app data root Files browses,
-    and must never be listed, opened, or mutated by a generic browser."""
+    those live inside the app's own data folder under this same
+    workspace root, and must never be listed, opened, or mutated by a
+    generic browser."""
 
     relpath = (relpath or "").strip().strip("/")
     target = (workspace / relpath).resolve() if relpath else workspace.resolve()
@@ -195,21 +197,33 @@ def run_command(workspace, cwd, tokens):
     return f"unknown command: {cmd}", True
 
 
-def entry_links(entries, workspace_id, cwd):
+def entry_links(entries, workspace_id, cwd, app_folder):
     """Attaches an `href` to each listing/search-result entry - a folder
     navigates within Files, a file hands off to the shared Editor app,
     carrying enough context (app/home) for Editor's topbar and close
-    button to point back at the exact directory being browsed here."""
+    button to point back at the exact directory being browsed here.
+
+    Files browses from the true workspace root, but Editor's own
+    workspace is the app's data folder one level down (core.workspaces'
+    path(), e.g. .../ark/) - so a file's relpath here (relative to the
+    workspace root, e.g. "ark/note/2026/08/x.txt") has to have that
+    leading "<app>/" segment stripped before Editor will find it."""
 
     home = url_for("files.browse", workspace=workspace_id, path=cwd)
+    prefix = app_folder + "/"
 
     for entry in entries:
         if entry["is_dir"]:
             entry["href"] = url_for("files.browse", workspace=workspace_id, path=entry["relpath"])
         else:
+            editor_relpath = entry["relpath"]
+
+            if editor_relpath.startswith(prefix):
+                editor_relpath = editor_relpath[len(prefix):]
+
             entry["href"] = url_for(
                 "editor.view",
-                file=entry["relpath"],
+                file=editor_relpath,
                 workspace=workspace_id,
                 app="Files",
                 home=home,
@@ -227,14 +241,21 @@ def browse():
         workspace_id = request.args.get("workspace")
         cwd = request.args.get("path", "")
 
-    user, workspace, record = ark_workspace(workspace_id)
+    user, git_dir, record = ark_workspace(workspace_id)
 
     if not user:
         return redirect("/login")
 
+    # Files browses the true workspace root - one level above the app's
+    # own data folder (git_dir, e.g. .../ark/) that auto_sync/is_git_linked
+    # actually operate on - so the app's folder itself shows up as a
+    # regular, clickable entry instead of being silently skipped past.
+    workspace = core_workspaces.root(record["group_slug"], record["app"], record["name"])
+    app_folder = record["app"]
+
     # Opportunistic pull-and-push on every visit, same as Ark/Files'
     # shared workspace - see apps.ark.runner.auto_sync's docstring.
-    auto_sync(workspace, record["id"])
+    auto_sync(git_dir, record["id"])
     conflict = sync_state.is_conflicted(record["id"])
 
     message = ""
@@ -268,14 +289,14 @@ def browse():
                     message, is_error = run_command(workspace, cwd, [first] + tokens[1:])
 
                     if not is_error:
-                        auto_sync(workspace, record["id"], force=True)
+                        auto_sync(git_dir, record["id"], force=True)
             else:
                 is_search = True
-                entries = entry_links(search_files(workspace, query), record["id"], cwd)
+                entries = entry_links(search_files(workspace, query), record["id"], cwd, app_folder)
                 message = "" if entries else "no matches"
 
     if not is_search:
-        entries = entry_links(list_dir(workspace, cwd), record["id"], cwd)
+        entries = entry_links(list_dir(workspace, cwd), record["id"], cwd, app_folder)
 
         if cwd:
             parent = cwd.rsplit("/", 1)[0] if "/" in cwd else ""
@@ -303,7 +324,7 @@ def browse():
         app_label=NAME,
         app_home="/apps/files/",
         workspace_id=record["id"],
-        git_linked=is_git_linked(workspace),
+        git_linked=is_git_linked(git_dir),
         workspace_options=core_groups.list_group_workspaces(record["group_id"], "ark"),
         active_workspace_id=record["id"],
     )
