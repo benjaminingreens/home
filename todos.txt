@@ -120,3 +120,7 @@ Ark multiview added (DONE, 2026-08-18): same session, in response to feedback th
 maybe change topbar to 'lowbar' - like a sort of bottom bar with any extra data, so that the screen can be clear for apps. and maybe add the command entry section just above bottom bar, idk. or maybe make this customisable?
 
 eventually, homeapp needs to be a seamless thing. someone should be able to buy a server, install arch or whatever, and then run a few commands and have a functioning homeapp server. and how this links up to other servers should be simple - so for example, if there are other servers which act primarily as extra storage, this needs to be understood. basically, a network. admin should be able to manage these to some degree from homeapp
+
+encryption on the actual server (for adult accounts) so that even an admin can't read data - only manage it.
+
+adult/child accounts. child accounts are fully accessible by admin
