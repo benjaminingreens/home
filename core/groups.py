@@ -244,7 +244,7 @@ def get_or_create_group_default_workspace(group_id, app, creator_id):
     """First workspace in this group for `app`, creating a 'default' one
     if none exist yet. A brand-new shared group has no workspace at all
     until someone explicitly creates one (Settings' "create workspace"
-    form does this for the general case) - this backs the bottom bar's
+    form does this for the general case) - this backs the topbar's
     "create default workspace" fallback that appears in the switcher when
     a group has nothing to switch into yet, so picking that group isn't a
     dead end."""

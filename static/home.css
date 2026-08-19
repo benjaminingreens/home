@@ -357,15 +357,18 @@ body.editor .topbar {
 }
 
 .menu-group-summary::before {
-    /* A hex escape like \2212 eats the space right after it as part of
-       the escape itself, not as literal content - use the real
-       characters instead of an escape so the trailing space survives. */
-    content: "+ ";
+    /* A trailing space inside content wasn't enough on its own: making
+       the summary a flex container blockifies this pseudo-element into
+       a flex item, and a block-level box's own trailing whitespace is
+       insignificant - it gets trimmed at the box edge instead of
+       rendered. An explicit margin can't be trimmed away like that. */
+    content: "+";
+    margin-right: 0.5em;
     color: var(--fg-muted, #888);
 }
 
 .menu-group[open] .menu-group-summary::before {
-    content: "− ";
+    content: "−";
 }
 
 .menu-group-tick {

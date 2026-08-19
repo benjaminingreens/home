@@ -1,4 +1,5 @@
 import shlex
+from urllib.parse import urlsplit, urlencode, parse_qsl
 
 from flask import render_template, request, redirect, abort
 
@@ -9,6 +10,28 @@ from core import sync_state
 
 from . import bp, NAME
 from .runner import install, run, is_git_linked, auto_sync, theirs_content, resolve_conflict, known_commands
+
+
+def redirect_after_switch():
+    """Where a workspace-switching endpoint sends you back to: the page
+    you switched from, same as before, but with any workspace= query
+    param stripped out first. Files' own links always carry an explicit
+    workspace= (see apps.files.routes.entry_links, deliberate - so a
+    shared link always means a specific workspace regardless of whoever
+    clicks it) - left untouched, switching from a Files page would just
+    bounce back to that same stale workspace= and look like the switch
+    silently did nothing."""
+
+    referrer = request.referrer
+
+    if not referrer:
+        return redirect("/apps/ark/")
+
+    parts = urlsplit(referrer)
+    query = urlencode([(k, v) for k, v in parse_qsl(parts.query) if k != "workspace"])
+    target = parts.path + (f"?{query}" if query else "")
+
+    return redirect(target)
 
 
 def resolve_active_workspace(user):
@@ -123,7 +146,7 @@ def process(workspace, workspace_id, query):
 
 def multiview_workspaces(user, primary_record):
     """Every workspace a multiview query should run against: the active
-    ("primary") one, plus whatever's pinned via the bottom bar's
+    ("primary") one, plus whatever's pinned via the topbar's
     checkbox-style switcher (see core.groups.list_multiview_selection) -
     filtered to workspaces the user is still an active member of, in case
     a pin outlived their membership. Order matters: primary first, so
@@ -300,7 +323,7 @@ def switch_workspace():
     except (ValueError, PermissionError):
         pass
 
-    return redirect(request.referrer or "/apps/ark/")
+    return redirect_after_switch()
 
 
 @bp.get("/workspaces/new")
@@ -327,7 +350,7 @@ def new_default_workspace():
     except (ValueError, PermissionError):
         pass
 
-    return redirect(request.referrer or "/apps/ark/")
+    return redirect_after_switch()
 
 
 @bp.post("/multiview")
@@ -374,7 +397,7 @@ def set_multiview():
 
     core_groups.set_multiview_extras(user["id"], [wid for wid in checked_ids if wid != active_id])
 
-    return redirect(request.referrer or "/apps/ark/")
+    return redirect_after_switch()
 
 
 @bp.route("/workspace", methods=["GET", "POST"])
