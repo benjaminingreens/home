@@ -124,3 +124,5 @@ eventually, homeapp needs to be a seamless thing. someone should be able to buy 
 encryption on the actual server (for adult accounts) so that even an admin can't read data - only manage it.
 
 adult/child accounts. child accounts are fully accessible by admin
+
+test
