@@ -1,7 +1,15 @@
 html {
     box-sizing: border-box;
     background: var(--bg-color, #000);
-    overflow-x: hidden;
+    /* clip, not hidden: hidden is a "scrollable overflow" value even with
+       no visible scrollbar, and setting only one axis computes the other
+       (overflow-y, left at its default visible) to auto too - both
+       together turn html into its own scroll container, which breaks
+       position: sticky on descendants (.topbar) since it then sticks
+       relative to that inert box instead of the real page scroll. clip
+       suppresses the horizontal overflow without creating a scroll
+       container at all. */
+    overflow-x: clip;
 }
 
 *,
@@ -949,7 +957,12 @@ body.chat .topbar {
    ======================================================= */
 
 .editor-topbar {
-    font-size: 1rem;
+    /* Matches the actual file text size (body's font-size) rather than
+       the 1rem/16px root-relative size that made this look small next to
+       the content - .topbar's own font-size (2rem, for the app/switcher
+       labels) isn't right for editor either, so this can't just fall
+       through to that. */
+    font-size: inherit;
     font-style: normal;
     align-items: center;
 }
@@ -957,30 +970,44 @@ body.chat .topbar {
 .editor-actions {
     display: flex;
     flex: 0 0 auto;
-    gap: 16px;
+    gap: 10px;
 }
 
 .editor-action {
-    padding: 0;
-    border: none;
-    background: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.8em;
+    padding: 0.25em 0.45em;
+    border: 1px solid var(--border-color, #333);
+    border-radius: 6px;
+    background: rgba(127, 127, 127, 0.08);
+    color: var(--fg-color, #fff);
     text-transform: uppercase;
     font: inherit;
-    font-size: 1.1rem;
     font-weight: bold;
+    line-height: 1;
     cursor: pointer;
+}
+
+.editor-action:active {
+    background: rgba(127, 127, 127, 0.2);
 }
 
 .editor-action.reading {
     color: #7fe28a;
+    border-color: rgba(127, 226, 138, 0.4);
 }
 
 .editor-action.writing {
     color: #ff8f8f;
+    border-color: rgba(255, 143, 143, 0.4);
 }
 
 .editor-action.locked {
     color: var(--fg-faint, #666);
+    border-color: var(--border-color, #333);
+    background: none;
     cursor: not-allowed;
 }
 
@@ -1008,7 +1035,7 @@ body.chat .topbar {
 .editor-save-status {
     flex: 0 0 auto;
     font-style: italic;
-    font-size: 0.9rem;
+    font-size: 0.6em;
     color: var(--fg-muted, #888);
     margin-left: 8px;
 }
@@ -1192,6 +1219,13 @@ body.chat .topbar {
     .topbar {
         gap: 8px;
         font-size: 1.3rem;
+    }
+
+    .editor-topbar {
+        /* .topbar's own mobile font-size (above) would otherwise win here
+           too (same specificity, declared later) - editor still wants to
+           match body's mobile font-size, not that fixed 1.3rem. */
+        font-size: inherit;
     }
 
     .menu-overlay {
