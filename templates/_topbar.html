@@ -22,10 +22,23 @@
 {% endfor %}
 {% endfor %}
 
+{% if page_class == 'editor' %}
+<nav class="topbar editor-topbar">
+<div class="editor-actions">
+<button type="button" id="closeBtn" class="editor-action">x</button>
+<button type="button" id="saveBtn" class="editor-action">s</button>
+<button type="button" id="toggleEdit" class="editor-action reading{% if locked_by %} locked{% endif %}">r</button>
+</div>
+<span class="editor-divider">|</span>
+<div class="editor-filename-wrap"><span class="editor-filename">{{ file_path }}</span></div>
+<span id="saveStatus" class="editor-save-status">{% if locked_by %}locked by {{ locked_by | lower }}{% endif %}</span>
+</nav>
+{% else %}
 <nav class="topbar">
 <button type="button" class="topbar-seg topbar-app" onclick="openMenu('app')">{{ (app_label or "home") | lower }}</button>
 <button type="button" class="topbar-seg topbar-switcher" style="color: {{ current_user_ctx.accent_color }}" onclick="openMenu('workspace')">{% if multiview_app and multiview_selection %}multiple{% else %}{{ ns.group_name | lower }}/{{ ns.workspace_name | lower }}{% endif %}</button>
 </nav>
+{% endif %}
 
 <div id="menu-app" class="menu-overlay hidden">
 

@@ -8,15 +8,6 @@
 <div class="message error"><a href="/apps/ark/conflicts?workspace={{ workspace_id }}">sync conflict in this workspace - tap to resolve</a></div>
 {% endif %}
 
-<div id="editorbar">
-
-<button type="button" id="toggleEdit" class="reading{% if locked_by %} locked{% endif %}">{% if locked_by %}locked{% else %}reading{% endif %}</button>
-<button type="button" id="saveBtn" class="linkbtn">save</button>
-<button type="button" id="closeBtn" class="linkbtn">close</button>
-<span id="saveStatus">{% if locked_by %}being edited by {{ locked_by | lower }}{% endif %}</span>
-
-</div>
-
 <pre id="fileread">{% for line in file_lines %}<span class="line{% if loop.index0 == highlight_line %} hl{% endif %}">{{ line }}</span>
 {% endfor %}</pre>
 
@@ -109,7 +100,6 @@ let lockedBy = {{ locked_by | tojson }};
 const toggleEdit = document.getElementById("toggleEdit");
 const saveBtn = document.getElementById("saveBtn");
 const closeBtn = document.getElementById("closeBtn");
-const editorbar = document.getElementById("editorbar");
 const fileread = document.getElementById("fileread");
 const taWrap = document.getElementById("taWrap");
 const form = document.getElementById("fileform");
@@ -234,8 +224,8 @@ function applyVisibility() {
 
 function setEditing(next) {
     editing = next;
-    toggleEdit.textContent = editing ? "writing" : "reading";
-    toggleEdit.className = editing ? "writing" : "reading";
+    toggleEdit.textContent = editing ? "w" : "r";
+    toggleEdit.className = "editor-action " + (editing ? "writing" : "reading");
     applyVisibility();
     pendingKey = null;
     pendingOperator = null;
@@ -249,7 +239,6 @@ function setEditing(next) {
     }
 
     updateBlockCursor();
-    hideBar();
 }
 
 function setHelp(next) {
@@ -306,9 +295,9 @@ function acquireLock() {
 
         return res.json().then(data => {
             lockedBy = data.holder || "someone";
-            toggleEdit.textContent = "locked";
-            toggleEdit.className = "reading locked";
-            showSaveStatus("being edited by " + lockedBy.toLowerCase(), true);
+            toggleEdit.textContent = "r";
+            toggleEdit.className = "editor-action reading locked";
+            showSaveStatus("locked by " + lockedBy.toLowerCase(), true);
             return false;
         });
     }).catch(() => true); // fail open on network blips - don't block editing over connectivity
@@ -829,63 +818,6 @@ closeBtn.addEventListener("click", () => {
 // to stop writing" - double-click already means "select this word" there,
 // a much stronger, well-established expectation while actively editing.
 fileread.addEventListener("dblclick", startWriting);
-
-// Pull-to-reveal: scrolling/dragging upward while already at the top of
-// the page reveals #editorbar (reading/writing, save, close) instead of
-// it sitting there permanently - scrolling back down hides it again.
-// There's no real overscroll to measure with a mouse, so a wheel event
-// with upward intent at the top stands in for the same gesture.
-let barShown = false;
-
-function showBar() {
-    if (barShown) return;
-    barShown = true;
-    editorbar.classList.add("shown");
-}
-
-function hideBar() {
-    if (!barShown) return;
-    barShown = false;
-    editorbar.classList.remove("shown");
-}
-
-function pageScrollTop() {
-    return window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
-}
-
-window.addEventListener("wheel", e => {
-    if (pageScrollTop() <= 0 && e.deltaY < 0) {
-        showBar();
-    } else if (e.deltaY > 0) {
-        hideBar();
-    }
-}, { passive: true });
-
-let touchStartY = null;
-let touchStartedAtTop = false;
-
-window.addEventListener("touchstart", e => {
-    touchStartY = e.touches[0].clientY;
-    touchStartedAtTop = pageScrollTop() <= 0;
-}, { passive: true });
-
-window.addEventListener("touchmove", e => {
-    if (touchStartY === null) return;
-
-    const dy = e.touches[0].clientY - touchStartY;
-
-    if (touchStartedAtTop && dy > 24) {
-        showBar();
-    } else if (dy < -8) {
-        hideBar();
-    }
-}, { passive: true });
-
-window.addEventListener("touchend", () => { touchStartY = null; });
-
-window.addEventListener("scroll", () => {
-    if (pageScrollTop() > 8) hideBar();
-}, { passive: true });
 
 textarea.addEventListener("input", () => { autosize(); updateBlockCursor(); scheduleAutosave(); });
 textarea.addEventListener("click", updateBlockCursor);
