@@ -47,7 +47,14 @@ body {
         monospace;
     font-size: 28px;
     line-height: 1.65;
-    overflow-x: hidden;
+    /* clip, not hidden - see the matching note on html above. This one
+       actually mattered more in practice: with body computing overflow-y
+       to auto, body becomes its own internal scroll container, so the
+       page scrolls inside body's box instead of the window/document -
+       window.scrollY then never changes, which is why the topbar's
+       scroll-hide listener (window's 'scroll' event) never fired at
+       all. */
+    overflow-x: clip;
 }
 
 :root {
@@ -967,21 +974,14 @@ body.chat .topbar {
     align-items: center;
 }
 
-.editor-actions {
-    display: flex;
-    flex: 0 0 auto;
-    gap: 10px;
-}
-
 .editor-action {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 1.8em;
-    padding: 0.25em 0.45em;
-    border: 1px solid var(--border-color, #333);
-    border-radius: 6px;
-    background: rgba(127, 127, 127, 0.08);
+    /* Bare monospace letters, not a boxed button - the | dividers between
+       each one (and before the filename) are what demarcate the click
+       areas, not a background/border. Padding still gives each one a
+       real tap target without drawing a visible box. */
+    padding: 0.2em 0.3em;
+    border: none;
+    background: none;
     color: var(--fg-color, #fff);
     text-transform: uppercase;
     font: inherit;
@@ -991,29 +991,26 @@ body.chat .topbar {
 }
 
 .editor-action:active {
-    background: rgba(127, 127, 127, 0.2);
+    opacity: 0.6;
 }
 
 .editor-action.reading {
     color: #7fe28a;
-    border-color: rgba(127, 226, 138, 0.4);
 }
 
 .editor-action.writing {
     color: #ff8f8f;
-    border-color: rgba(255, 143, 143, 0.4);
 }
 
 .editor-action.locked {
     color: var(--fg-faint, #666);
-    border-color: var(--border-color, #333);
-    background: none;
     cursor: not-allowed;
 }
 
 .editor-divider {
     flex: 0 0 auto;
     color: var(--fg-muted, #888);
+    user-select: none;
 }
 
 .editor-filename-wrap {
@@ -1200,10 +1197,6 @@ body.chat .topbar {
     body {
         padding: 16px;
         font-size: 19px;
-    }
-
-    .editor-actions {
-        gap: 12px;
     }
 
     :root {

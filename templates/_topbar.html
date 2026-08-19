@@ -24,13 +24,13 @@
 
 {% if page_class == 'editor' %}
 <nav class="topbar editor-topbar">
-<div class="editor-actions">
 <button type="button" id="closeBtn" class="editor-action">x</button>
-<button type="button" id="saveBtn" class="editor-action">s</button>
-<button type="button" id="toggleEdit" class="editor-action reading{% if locked_by %} locked{% endif %}">r</button>
-</div>
 <span class="editor-divider">|</span>
-<div class="editor-filename-wrap"><span class="editor-filename">{{ file_path }}</span></div>
+<button type="button" id="saveBtn" class="editor-action">s</button>
+<span class="editor-divider">|</span>
+<button type="button" id="toggleEdit" class="editor-action reading{% if locked_by %} locked{% endif %}">r</button>
+<span class="editor-divider">|</span>
+<div class="editor-filename-wrap"><span class="editor-filename">{{ file_name }}</span></div>
 <span id="saveStatus" class="editor-save-status">{% if locked_by %}locked by {{ locked_by | lower }}{% endif %}</span>
 </nav>
 {% else %}

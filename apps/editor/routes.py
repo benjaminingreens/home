@@ -1,4 +1,4 @@
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from urllib.parse import urlencode
 
 from flask import render_template, request, redirect, abort
@@ -100,6 +100,7 @@ def view():
         "editor.html",
         page_class="editor",
         file_path=file_path,
+        file_name=PurePosixPath(file_path).name,
         file_content=file_content,
         file_lines=file_lines,
         highlight_line=highlight_line,
