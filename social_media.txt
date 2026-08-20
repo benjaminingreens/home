@@ -22,3 +22,5 @@ idea for how social media could work on homeapp:
 - an important feature of homeapp - and perhaps infrastructure for this needs to be added to todos: your data is on your server. so no matter the group or setup, your data on an app - say chat - is on your server. if your server goes offline, no one else can see those messages. so everyone essentially has a 'version' of a shared group on their server with its own appdata, media, and files. anything the user 'uploads' to the group - in whatever app - remains on their server.
 
 - for apps, allow users to set a preference of group/workspace selection. the 'feed' (twitter style app), for example, could always open with 'subscriptions'
+
+- in general: fast installation, fast connection with other servers, and easy storage management -> all this needs to be sorted
