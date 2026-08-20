@@ -1,0 +1,24 @@
+idea for how social media could work on homeapp:
+
+- homeapp is modelled on physical and relational closeness. it is designed to mimic real relationships, with the digital world being curated by real life friendship
+- this is part of its philosophy: it aims to compliment real life rather than provide an alternative to it (an aim which has developed out a hatred for the addictive and consuming world of social media and digital technology today)
+- one server is connected with another by invite/request, and they become 'neighbours'.
+- what this means is that groups can be created to include members from any of the servers in the 'neighbourhood' relative to the server which created the group.
+- i think, for safety sake, we should have different layers of group:
+-- level 1: the only people invite-able must meet these criteria: everyone in the group must be based on a server which is directly connected to everyone else on the server. this stops people on server a being exposed to people on server c because the group was made by server b who invited them both. this restriction is made with children in mind.
+-- level 2: the standard: whoever creates the group can invite anyone in the neighbourhood relative to the group. using the same example as before, people on server a can then interact with people on server c via this group.
+- there is also such a thing as a subscription. one can 'subscribe' to a server. this is one way. apps have different exposure levels. some apps allow only one group/workspace. others allow multiple. others will allow viewing multiple AND/OR subscriptions. this allows for apps - like say a twitter like app - where you have the ability to watch multiple group/workspaces at once, as well as see subscriptions. some subscriptions can be paid to allow revenue streams.
+- chanelled groups: groups can be turned into 'channels'. this means that they can become subscribe-able. people can be invited to subscribe - or it can be made accessible to anyone to subscribe. this essentially means they are able to see any content posted. in channelled groups, there are hierarchies. members of the group (not subscribers, but members) are selected as editors/non-editors. subscribers only see the contributions of editors. editors can toggle whether they are posting content as an editor member or as a regular member. this allows members to remain in and use the group as a normal private group while a portion of it is exposed in a controlled way to subscribers. thus, members can see, for example, the posts of the editor and each other - which may include comments on a forum style app, for example. 
+
+---
+
+- not sure i like the chanel idea. just trying to make subscriptions work - but also allow for the post of subscriptionsto see some interactions, which requires a group. hence, a channel which is a group. idk. and then this becomes confusing because for those members, what if they want to discuss those posts with other groups? i guess the only way would be if two people are subscribed, and then... wait... subscriptions can't show up in groups, can they?
+- okay all this channel and subscription stuff needs a re-think
+- in an app where multiple workspaces are selected, when a user 'adds' something - where does it go? in which workspace?
+- there are also ideas for more group types (6 degrees?) which allow for more complex but still restrained social media
+
+---
+
+- an important feature of homeapp - and perhaps infrastructure for this needs to be added to todos: your data is on your server. so no matter the group or setup, your data on an app - say chat - is on your server. if your server goes offline, no one else can see those messages. so everyone essentially has a 'version' of a shared group on their server with its own appdata, media, and files. anything the user 'uploads' to the group - in whatever app - remains on their server.
+
+- for apps, allow users to set a preference of group/workspace selection. the 'feed' (twitter style app), for example, could always open with 'subscriptions'
