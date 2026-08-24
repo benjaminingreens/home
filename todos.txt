@@ -126,3 +126,5 @@ encryption on the actual server (for adult accounts) so that even an admin can't
 adult/child accounts. child accounts are fully accessible by admin
 
 test
+
+should some apps have no groups? or does this defeat philosophy?
