@@ -121,6 +121,10 @@ let pendingReplace = false;
 let countBuffer = "";
 let register = "";
 let registerLinewise = false;
+// Set by a vim motion that already made its own final call on scrolling
+// (currently just gg - see its handler) so the generic post-motion
+// dispatch below doesn't immediately override it with keepCursorInView.
+let skipViewAdjust = false;
 let undoStack = [];
 
 function escapeHtml(s) {
@@ -169,42 +173,68 @@ function placeCursorAtHighlight(targetOffset) {
     centerCursor();
 }
 
+function caretInfoAtPoint(x, y) {
+    if (document.caretRangeFromPoint) {
+        const range = document.caretRangeFromPoint(x, y);
+        return range ? { node: range.startContainer, offset: range.startOffset } : null;
+    }
+
+    if (document.caretPositionFromPoint) {
+        const pos = document.caretPositionFromPoint(x, y);
+        return pos ? { node: pos.offsetNode, offset: pos.offset } : null;
+    }
+
+    return null;
+}
+
 // Maps a click/tap on the read view back to a character offset in the
 // raw file text, so double-tapping mid-paragraph to start writing lands
 // the cursor exactly there instead of wherever the textarea's own
 // selection happened to be left (position 0 on a fresh page load, since
 // the hidden textarea never sees the tap itself).
+//
+// Finds the row by Y first, rather than doing one caret hit-test on the
+// raw (x, y) and hoping it landed inside a .line span: a plain (non-
+// highlighted) line span is only as wide as its own text, so tapping in
+// the blank space to the right of a short line - or anywhere on an empty
+// line, which has zero width - lands outside every span and resolves to
+// the bare "\n" text node between spans instead, whose parent is
+// #fileread itself, not a line. That was silently falling through to
+// null (and from there to the textarea's default position 0) far more
+// often than an exact hit on a character. Once the row is known from Y
+// alone, the horizontal hit-test is re-run at that row's own vertical
+// centre, guaranteeing it lands inside that row's real content.
 function offsetFromReadClick(x, y) {
-    let node, nodeOffset;
+    const lines = Array.from(fileread.querySelectorAll(".line"));
+    if (!lines.length) return null;
 
-    if (document.caretRangeFromPoint) {
-        const range = document.caretRangeFromPoint(x, y);
-        if (!range) return null;
-        node = range.startContainer;
-        nodeOffset = range.startOffset;
-    } else if (document.caretPositionFromPoint) {
-        const pos = document.caretPositionFromPoint(x, y);
-        if (!pos) return null;
-        node = pos.offsetNode;
-        nodeOffset = pos.offset;
-    } else {
-        return null;
+    let lineIdx = lines.findIndex(line => {
+        const r = line.getBoundingClientRect();
+        return y >= r.top && y < r.bottom;
+    });
+
+    if (lineIdx === -1) {
+        lineIdx = (y < lines[0].getBoundingClientRect().top) ? 0 : lines.length - 1;
     }
 
-    const isText = node.nodeType === Node.TEXT_NODE;
-    const lineSpan = (isText ? node.parentElement : node).closest(".line");
-    if (!lineSpan) return null;
+    const lineSpan = lines[lineIdx];
+    const lineText = lineSpan.textContent;
+    let charInLine = lineText.length; // default: end of line/file
 
-    const lines = Array.from(fileread.querySelectorAll(".line"));
-    const lineIdx = lines.indexOf(lineSpan);
-    if (lineIdx === -1) return null;
+    if (lineText.length > 0) {
+        const r = lineSpan.getBoundingClientRect();
+        const info = caretInfoAtPoint(x, (r.top + r.bottom) / 2);
+        if (info && info.node.nodeType === Node.TEXT_NODE && lineSpan.contains(info.node)) {
+            charInLine = info.offset;
+        }
+    }
 
     let offset = 0;
     for (let i = 0; i < lineIdx; i++) {
         offset += lines[i].textContent.length + 1;
     }
 
-    return offset + (isText ? nodeOffset : 0);
+    return offset + charInLine;
 }
 
 function scrollToHighlight() {
@@ -274,6 +304,41 @@ function updateBlockCursor() {
     blockcursor.style.height = markRect.height + "px";
 }
 
+// Drives our own scroll animation instead of window.scrollTo's built-in
+// smooth behavior: typing recentres on every keystroke, and re-issuing a
+// native smooth scrollTo mid-animation (with the target shifting a
+// little each time, e.g. as autosize() changes the document's height)
+// visibly overshoots/corrects in some browsers rather than continuing
+// smoothly from wherever the in-flight animation currently is. Owning
+// the loop means a retarget always just tweens from the *current*
+// on-screen position to the new target, so it reads as one continuous
+// motion no matter how often it's redirected.
+let scrollAnimFrame = null;
+
+function animateScrollTo(target, duration) {
+    if (scrollAnimFrame) cancelAnimationFrame(scrollAnimFrame);
+
+    const start = window.scrollY;
+    const distance = target - start;
+
+    if (Math.abs(distance) < 1) {
+        window.scrollTo(0, target);
+        scrollAnimFrame = null;
+        return;
+    }
+
+    const startTime = performance.now();
+
+    function step(now) {
+        const t = Math.min(1, (now - startTime) / duration);
+        const eased = 1 - Math.pow(1 - t, 3);
+        window.scrollTo(0, start + distance * eased);
+        scrollAnimFrame = (t < 1) ? requestAnimationFrame(step) : null;
+    }
+
+    scrollAnimFrame = requestAnimationFrame(step);
+}
+
 // Keeps the cursor's line vertically centered in the viewport (below the
 // topbar) as the user types - moving the cursor alone (click, arrow
 // keys, vim motions) deliberately never calls this, only an actual
@@ -298,29 +363,33 @@ function centerCursor() {
     const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
     const target = Math.min(maxScroll, Math.max(0, pageY - center));
 
-    window.scrollTo({ top: target, behavior: "smooth" });
+    animateScrollTo(target, 180);
 }
 
 // The soft counterpart to centerCursor(): pure cursor movement (arrow
-// keys, vim motions) should never be disturbed by a forced recenter -
-// only nudge the page, and only the minimum needed, when the cursor
-// would otherwise actually leave the visible area (e.g. holding "j" off
-// the bottom of the screen). Landing it dead-center like a real edit
-// would is more motion than a plain move warrants.
+// keys, vim motions) should never be disturbed by a forced recenter, or
+// even by an animation - it should feel like plain, direct navigation.
+// Only nudge the page, instantly, and only the minimum needed, when the
+// cursor would otherwise actually leave the visible area (e.g. holding
+// "j" off the bottom of the screen), landing it EDGE_MARGIN in from
+// whichever edge rather than flush against it - flush against the very
+// bottom in particular reads as cramped, with no breathing room below
+// the line being read.
 function keepCursorInView() {
     if (!editing || helpOpen) return;
 
     const topbarEl = document.querySelector(".topbar");
     const topInset = topbarEl ? Math.max(topbarEl.getBoundingClientRect().bottom, 0) : 0;
     const viewportH = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+    const EDGE_MARGIN = parseFloat(getComputedStyle(textarea).lineHeight) || 24;
 
     const markRect = measureCursorMarker();
 
     let delta = 0;
-    if (markRect.top < topInset) {
-        delta = markRect.top - topInset;
-    } else if (markRect.bottom > viewportH) {
-        delta = markRect.bottom - viewportH;
+    if (markRect.top < topInset + EDGE_MARGIN) {
+        delta = markRect.top - (topInset + EDGE_MARGIN);
+    } else if (markRect.bottom > viewportH - EDGE_MARGIN) {
+        delta = markRect.bottom - (viewportH - EDGE_MARGIN);
     } else {
         return;
     }
@@ -328,7 +397,7 @@ function keepCursorInView() {
     const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
     const target = Math.min(maxScroll, Math.max(0, window.scrollY + delta));
 
-    window.scrollTo({ top: target, behavior: "smooth" });
+    window.scrollTo(0, target);
 }
 
 function applyVisibility() {
@@ -696,7 +765,12 @@ function handleNormalKey(e) {
         if (e.key === "g") {
             e.preventDefault();
             textarea.setSelectionRange(0, 0);
-            textarea.scrollTop = 0;
+            // keepCursorInView would only scroll just enough to clear the
+            // topbar, which can leave scrollY above 0 - gg means "go to
+            // the very top", the same place a finger-scroll-to-top would
+            // land, topbar and all the way included.
+            window.scrollTo(0, 0);
+            skipViewAdjust = true;
             return true;
         }
 
@@ -1000,8 +1074,11 @@ document.addEventListener("keydown", e => {
             // a key that actually changed the buffer (x, dd, o, p, r,
             // ~...) counts as "typing" and forces a full recenter.
             const changed = textarea.value !== beforeValue;
+            const skip = skipViewAdjust;
+            skipViewAdjust = false;
             setTimeout(() => {
                 updateBlockCursor();
+                if (skip) return;
                 if (changed) centerCursor(); else keepCursorInView();
             }, 0);
             return;

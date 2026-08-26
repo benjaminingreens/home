@@ -214,32 +214,58 @@ document.addEventListener('keydown', function (e) {
     if (!topbar) return;
 
     var lastY = window.scrollY;
-    var hiddenPx = 0; // current translateY(-hiddenPx), tracked while scrolling down
+    var hiddenPx = 0; // current translateY(-hiddenPx) - always set explicitly below, never left to a CSS transition
+    var revealFrame = null;
+
+    function applyHidden(px) {
+        hiddenPx = px;
+        topbar.style.transform = px > 0 ? 'translateY(-' + px + 'px)' : '';
+    }
+
+    // Drives the reveal ourselves frame-by-frame instead of a CSS
+    // transition on transform - .topbar is `position: sticky`, and
+    // animating a sticky element's transform via CSS can visibly desync
+    // from the browser's own stuck/unstuck recompute as scrollY nears
+    // the point where it un-sticks (near the very top, where body's own
+    // padding lives above it) - the bar would appear to stall partway
+    // through the reveal until scrolling actually reached the top and
+    // the two recomputes finally agreed. Setting the transform fresh
+    // every frame, with no transition property involved, composites
+    // correctly with wherever sticky currently has the bar regardless.
+    function animateReveal() {
+        if (revealFrame) cancelAnimationFrame(revealFrame);
+
+        var start = hiddenPx;
+        var startTime = performance.now();
+        var duration = 200;
+
+        function step(now) {
+            var t = Math.min(1, (now - startTime) / duration);
+            var eased = 1 - Math.pow(1 - t, 3);
+            applyHidden(start * (1 - eased));
+            revealFrame = (t < 1) ? requestAnimationFrame(step) : null;
+        }
+
+        revealFrame = requestAnimationFrame(step);
+    }
 
     window.addEventListener('scroll', function () {
         var y = window.scrollY;
         var dy = y - lastY;
 
-        if (dy > 0 && y > topbar.offsetHeight) {
-            // Scrolling down: track the scroll 1:1 with no transition, so
-            // the bar just rides up out of view as part of the page - no
-            // separate "hide" animation of its own.
-            hiddenPx = Math.min(topbar.offsetHeight, hiddenPx + dy);
-            topbar.style.transition = 'none';
-            topbar.style.transform = 'translateY(-' + hiddenPx + 'px)';
-        } else if (dy < 0) {
-            // Scrolling up: snap fully back into view, animated (falls
-            // back to .topbar's own `transition: transform` rule now that
-            // the inline override above is cleared) - regardless of how
-            // far hidden it currently is, so a small upward nudge doesn't
-            // leave it stuck partway (this used to rely on a toggled CSS
-            // class, which a jittery run of scroll events - momentum
-            // scrolling, elastic overscroll - could re-add mid-transition
-            // before it finished, appearing to stall until scrolling
-            // stopped).
-            hiddenPx = 0;
-            topbar.style.transition = '';
-            topbar.style.transform = '';
+        if (y <= 0) {
+            // At the true top - force fully visible regardless of any
+            // in-flight reveal, so there's never a moment where reaching
+            // the top doesn't already show the whole bar.
+            if (revealFrame) { cancelAnimationFrame(revealFrame); revealFrame = null; }
+            applyHidden(0);
+        } else if (dy > 0 && y > topbar.offsetHeight) {
+            // Scrolling down: track the scroll 1:1, no animation, so the
+            // bar just rides up out of view as part of the page.
+            if (revealFrame) { cancelAnimationFrame(revealFrame); revealFrame = null; }
+            applyHidden(Math.min(topbar.offsetHeight, hiddenPx + dy));
+        } else if (dy < 0 && hiddenPx > 0 && !revealFrame) {
+            animateReveal();
         }
 
         lastY = y;

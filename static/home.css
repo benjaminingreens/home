@@ -208,7 +208,12 @@ button {
     top: 0;
     z-index: 40;
     background: var(--bg-color, #000);
-    transition: transform 0.2s ease;
+    /* No CSS transition here - the reveal is hand-animated frame-by-
+       frame in _topbar.html's scroll listener (see its comment for why:
+       a CSS transition on a `position: sticky` element's transform can
+       visibly desync from the browser's own stuck/unstuck recompute). A
+       transition here would additionally animate every one of those
+       per-frame sets on top of the JS tween. */
 }
 
 .topbar-seg {
