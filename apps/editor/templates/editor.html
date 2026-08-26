@@ -298,7 +298,37 @@ function centerCursor() {
     const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
     const target = Math.min(maxScroll, Math.max(0, pageY - center));
 
-    window.scrollTo(0, target);
+    window.scrollTo({ top: target, behavior: "smooth" });
+}
+
+// The soft counterpart to centerCursor(): pure cursor movement (arrow
+// keys, vim motions) should never be disturbed by a forced recenter -
+// only nudge the page, and only the minimum needed, when the cursor
+// would otherwise actually leave the visible area (e.g. holding "j" off
+// the bottom of the screen). Landing it dead-center like a real edit
+// would is more motion than a plain move warrants.
+function keepCursorInView() {
+    if (!editing || helpOpen) return;
+
+    const topbarEl = document.querySelector(".topbar");
+    const topInset = topbarEl ? Math.max(topbarEl.getBoundingClientRect().bottom, 0) : 0;
+    const viewportH = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+
+    const markRect = measureCursorMarker();
+
+    let delta = 0;
+    if (markRect.top < topInset) {
+        delta = markRect.top - topInset;
+    } else if (markRect.bottom > viewportH) {
+        delta = markRect.bottom - viewportH;
+    } else {
+        return;
+    }
+
+    const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    const target = Math.min(maxScroll, Math.max(0, window.scrollY + delta));
+
+    window.scrollTo({ top: target, behavior: "smooth" });
 }
 
 function applyVisibility() {
@@ -965,14 +995,24 @@ document.addEventListener("keydown", e => {
         const beforeValue = textarea.value;
 
         if (handleNormalKey(e)) {
-            // Pure motions (hjkl, w/b/e, 0/$, gg/G...) leave the page
-            // where it is, same as click/arrow-key navigation outside
-            // modal mode - only a key that actually changed the buffer
-            // (x, dd, o, p, r, ~...) counts as "typing" and recentres.
+            // Pure motions (hjkl, w/b/e, 0/$, gg/G...) only nudge the
+            // page if the cursor would otherwise leave the screen - only
+            // a key that actually changed the buffer (x, dd, o, p, r,
+            // ~...) counts as "typing" and forces a full recenter.
             const changed = textarea.value !== beforeValue;
-            setTimeout(() => { updateBlockCursor(); if (changed) centerCursor(); }, 0);
+            setTimeout(() => {
+                updateBlockCursor();
+                if (changed) centerCursor(); else keepCursorInView();
+            }, 0);
             return;
         }
+    }
+
+    // Plain arrow-key navigation (non-modal editing, or modal insert
+    // mode) never goes through handleNormalKey above - same "just keep
+    // it visible, don't force a recenter" rule as vim's motion keys.
+    if (editing && !helpOpen && e.key.startsWith("Arrow")) {
+        setTimeout(keepCursorInView, 0);
     }
 
     if (e.key === "Escape") {
