@@ -135,19 +135,26 @@ function autosize() {
 function placeCursorAtHighlight() {
     textarea.focus();
 
-    if (HIGHLIGHT_LINE < 0) return;
+    if (HIGHLIGHT_LINE >= 0) {
+        const lines = textarea.value.split("\n");
+        let offset = 0;
 
-    const lines = textarea.value.split("\n");
-    let offset = 0;
+        for (let i = 0; i < HIGHLIGHT_LINE && i < lines.length; i++) {
+            offset += lines[i].length + 1;
+        }
 
-    for (let i = 0; i < HIGHLIGHT_LINE && i < lines.length; i++) {
-        offset += lines[i].length + 1;
+        textarea.setSelectionRange(offset, offset);
     }
 
-    textarea.setSelectionRange(offset, offset);
-
-    const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 20;
-    textarea.scrollTop = Math.max(0, lineHeight * HIGHLIGHT_LINE - textarea.clientHeight / 2);
+    // #filecontent has no scroll of its own (autosize() grows it to fit
+    // the whole file, overflow: hidden) - the *page* scrolls instead, so
+    // "scroll the cursor into view" has to move window.scrollY, not the
+    // textarea. Previously set textarea.scrollTop here, which was a
+    // no-op (nothing to scroll internally) - the page just kept whatever
+    // scroll position focus() happened to leave it at, which is why
+    // opening a file to write often looked like it "jumped to the top"
+    // regardless of the cursor's real position.
+    centerCursor();
 }
 
 function scrollToHighlight() {
@@ -168,6 +175,28 @@ function syncMeasurerStyle() {
     cursormeasure.style.width = textarea.clientWidth + "px";
 }
 
+// Renders the current selectionStart as a real DOM node (via the hidden
+// cursormeasure mirror) and returns its viewport-relative rect - shared
+// by the block-cursor renderer (vim normal mode only) and centerCursor
+// (needed in every editing mode, not just normal mode).
+function measureCursorMarker() {
+    syncMeasurerStyle();
+
+    const val = textarea.value;
+    const pos = textarea.selectionStart;
+    const atChar = val[pos];
+
+    cursormeasure.textContent = "";
+    cursormeasure.appendChild(document.createTextNode(val.slice(0, pos)));
+
+    const marker = document.createElement("span");
+    marker.textContent = (!atChar || atChar === "\n") ? " " : atChar;
+    cursormeasure.appendChild(marker);
+    cursormeasure.appendChild(document.createTextNode(val.slice(pos + 1)));
+
+    return marker.getBoundingClientRect();
+}
+
 function updateBlockCursor() {
     const showBlock = modalOn && editing && vimMode === "normal" && !helpOpen;
 
@@ -185,28 +214,37 @@ function updateBlockCursor() {
         return;
     }
 
-    syncMeasurerStyle();
-
-    const val = textarea.value;
-    const pos = textarea.selectionStart;
-    const atChar = val[pos];
-
-    cursormeasure.textContent = "";
-    cursormeasure.appendChild(document.createTextNode(val.slice(0, pos)));
-
-    const marker = document.createElement("span");
-    marker.textContent = (!atChar || atChar === "\n") ? " " : atChar;
-    cursormeasure.appendChild(marker);
-    cursormeasure.appendChild(document.createTextNode(val.slice(pos + 1)));
-
     const wrapRect = taWrap.getBoundingClientRect();
-    const markRect = marker.getBoundingClientRect();
+    const markRect = measureCursorMarker();
 
     blockcursor.style.display = "block";
     blockcursor.style.left = (markRect.left - wrapRect.left) + "px";
     blockcursor.style.top = (markRect.top - wrapRect.top) + "px";
     blockcursor.style.width = markRect.width + "px";
     blockcursor.style.height = markRect.height + "px";
+}
+
+// Keeps the cursor's line vertically centered in the viewport (below the
+// topbar) as the user types or moves around, since #filecontent has no
+// scroll of its own - the whole page scrolls, so "recenter" means moving
+// window.scrollY, not the textarea. Naturally clamps to 0 near the start
+// of the file (can't scroll past the top just to center line one), which
+// is the one case where the cursor doesn't end up mid-screen.
+function centerCursor() {
+    if (!editing || helpOpen) return;
+
+    const topbarEl = document.querySelector(".topbar");
+    const topInset = topbarEl ? Math.max(topbarEl.getBoundingClientRect().bottom, 0) : 0;
+    const viewportH = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+    const center = topInset + (viewportH - topInset) / 2;
+
+    const markRect = measureCursorMarker();
+    const pageY = markRect.top + window.scrollY + markRect.height / 2;
+
+    const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    const target = Math.min(maxScroll, Math.max(0, pageY - center));
+
+    window.scrollTo(0, target);
 }
 
 function applyVisibility() {
@@ -819,12 +857,15 @@ closeBtn.addEventListener("click", () => {
 // a much stronger, well-established expectation while actively editing.
 fileread.addEventListener("dblclick", startWriting);
 
-textarea.addEventListener("input", () => { autosize(); updateBlockCursor(); scheduleAutosave(); });
-textarea.addEventListener("click", updateBlockCursor);
+textarea.addEventListener("input", () => { autosize(); updateBlockCursor(); centerCursor(); scheduleAutosave(); });
+textarea.addEventListener("click", () => { updateBlockCursor(); centerCursor(); });
 textarea.addEventListener("blur", () => { if (editing) save(); });
 
 document.addEventListener("selectionchange", () => {
-    if (document.activeElement === textarea) updateBlockCursor();
+    if (document.activeElement === textarea) {
+        updateBlockCursor();
+        centerCursor();
+    }
 });
 
 document.addEventListener("visibilitychange", () => {
@@ -866,7 +907,7 @@ document.addEventListener("keydown", e => {
 
     if (modalOn && editing && vimMode === "normal" && !helpOpen) {
         if (handleNormalKey(e)) {
-            setTimeout(updateBlockCursor, 0);
+            setTimeout(() => { updateBlockCursor(); centerCursor(); }, 0);
             return;
         }
     }

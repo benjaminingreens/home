@@ -24,14 +24,15 @@
 
 {% if page_class == 'editor' %}
 <nav class="topbar editor-topbar">
-<button type="button" id="closeBtn" class="editor-action">x</button>
+<div class="editor-filename-wrap"><span class="editor-filename">{{ file_name }}</span></div>
+<span id="saveStatus" class="editor-save-status">{% if locked_by %}locked by {{ locked_by | lower }}{% endif %}</span>
+<div class="editor-actions">
+<button type="button" id="toggleEdit" class="editor-action reading{% if locked_by %} locked{% endif %}">r</button>
 <span class="editor-divider">|</span>
 <button type="button" id="saveBtn" class="editor-action">s</button>
 <span class="editor-divider">|</span>
-<button type="button" id="toggleEdit" class="editor-action reading{% if locked_by %} locked{% endif %}">r</button>
-<span class="editor-divider">|</span>
-<div class="editor-filename-wrap"><span class="editor-filename">{{ file_name }}</span></div>
-<span id="saveStatus" class="editor-save-status">{% if locked_by %}locked by {{ locked_by | lower }}{% endif %}</span>
+<button type="button" id="closeBtn" class="editor-action">x</button>
+</div>
 </nav>
 {% else %}
 <nav class="topbar">
@@ -213,18 +214,32 @@ document.addEventListener('keydown', function (e) {
     if (!topbar) return;
 
     var lastY = window.scrollY;
+    var hiddenPx = 0; // current translateY(-hiddenPx), tracked while scrolling down
 
     window.addEventListener('scroll', function () {
         var y = window.scrollY;
+        var dy = y - lastY;
 
-        // Only roll up once past the topbar's own height, so the very
-        // first bit of scroll (still within the bar itself) doesn't hide
-        // it - and only on a real downward scroll, not a bounce/rubber-
-        // band wobble at the top on mobile.
-        if (y > lastY && y > topbar.offsetHeight) {
-            topbar.classList.add('topbar-hidden');
-        } else if (y < lastY) {
-            topbar.classList.remove('topbar-hidden');
+        if (dy > 0 && y > topbar.offsetHeight) {
+            // Scrolling down: track the scroll 1:1 with no transition, so
+            // the bar just rides up out of view as part of the page - no
+            // separate "hide" animation of its own.
+            hiddenPx = Math.min(topbar.offsetHeight, hiddenPx + dy);
+            topbar.style.transition = 'none';
+            topbar.style.transform = 'translateY(-' + hiddenPx + 'px)';
+        } else if (dy < 0) {
+            // Scrolling up: snap fully back into view, animated (falls
+            // back to .topbar's own `transition: transform` rule now that
+            // the inline override above is cleared) - regardless of how
+            // far hidden it currently is, so a small upward nudge doesn't
+            // leave it stuck partway (this used to rely on a toggled CSS
+            // class, which a jittery run of scroll events - momentum
+            // scrolling, elastic overscroll - could re-add mid-transition
+            // before it finished, appearing to stall until scrolling
+            // stopped).
+            hiddenPx = 0;
+            topbar.style.transition = '';
+            topbar.style.transform = '';
         }
 
         lastY = y;

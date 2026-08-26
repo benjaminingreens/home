@@ -211,10 +211,6 @@ button {
     transition: transform 0.2s ease;
 }
 
-.topbar.topbar-hidden {
-    transform: translateY(-100%);
-}
-
 .topbar-seg {
     border: none;
     background: none;
@@ -1027,6 +1023,7 @@ body.chat .topbar {
 
 .editor-filename {
     color: var(--fg-color, #fff);
+    font-weight: bold;
 }
 
 .editor-save-status {
@@ -1035,6 +1032,12 @@ body.chat .topbar {
     font-size: 0.6em;
     color: var(--fg-muted, #888);
     margin-left: 8px;
+}
+
+.editor-actions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
 }
 
 .linkbtn {

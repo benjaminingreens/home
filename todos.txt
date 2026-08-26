@@ -51,6 +51,8 @@ todo: let people see workspaces from more than one group at once, instead of one
 
 todo: chat - add live messaging (websockets/socket.io) so people don't have to refresh. visual redesign already shipped (log-style layout, coloured usernames, growing textarea, display_time) - this is just the realtime transport. means moving off sync gunicorn workers (e.g. -k eventlet) - a real infra change. issues.txt has the current "not receiving live" report confirming this is still outstanding.
 
+todo: figure out how chat works between two people specifically (a 1:1 DM), as distinct from a normal shared-group chat. today chat is scoped only to group_id (HOME_DATA_DIR/chat/<group_id>.txt) - there's no notion of a two-person-only conversation, and personal groups are single-member, so a DM doesn't obviously fit the existing group model without deciding something new. raised 2026-08-26 while thinking through social_media.txt's group/subscription model - not scoped yet.
+
 todo: build a media viewer app, opening files under a workspace's media/ branch - launched from Files the same way Editor already is for text files.
 
 todo: build a calendar app, linking to a workspace's ark evnt records.
