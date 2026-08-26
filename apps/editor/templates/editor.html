@@ -132,29 +132,79 @@ function autosize() {
     textarea.style.height = textarea.scrollHeight + "px";
 }
 
-function placeCursorAtHighlight() {
+// targetOffset (a character offset into the file, or undefined) comes
+// from wherever the user actually double-tapped in the read view - see
+// offsetFromReadClick. It takes priority over HIGHLIGHT_LINE, which is
+// only a page-load-time hint (from a search-result link) and shouldn't
+// override an explicit tap made after landing on the page.
+function placeCursorAtHighlight(targetOffset) {
     textarea.focus();
 
-    if (HIGHLIGHT_LINE >= 0) {
-        const lines = textarea.value.split("\n");
-        let offset = 0;
-
-        for (let i = 0; i < HIGHLIGHT_LINE && i < lines.length; i++) {
-            offset += lines[i].length + 1;
-        }
-
-        textarea.setSelectionRange(offset, offset);
+    if (typeof targetOffset === "number") {
+        const clamped = Math.max(0, Math.min(targetOffset, textarea.value.length));
+        textarea.setSelectionRange(clamped, clamped);
+        // Already visible - you just tapped it - so no need to scroll,
+        // same as any other cursor placement (see centerCursor's
+        // callers: placing the cursor never scrolls, only typing does).
+        return;
     }
+
+    if (HIGHLIGHT_LINE < 0) return;
+
+    const lines = textarea.value.split("\n");
+    let offset = 0;
+
+    for (let i = 0; i < HIGHLIGHT_LINE && i < lines.length; i++) {
+        offset += lines[i].length + 1;
+    }
+
+    textarea.setSelectionRange(offset, offset);
 
     // #filecontent has no scroll of its own (autosize() grows it to fit
     // the whole file, overflow: hidden) - the *page* scrolls instead, so
     // "scroll the cursor into view" has to move window.scrollY, not the
     // textarea. Previously set textarea.scrollTop here, which was a
-    // no-op (nothing to scroll internally) - the page just kept whatever
-    // scroll position focus() happened to leave it at, which is why
-    // opening a file to write often looked like it "jumped to the top"
-    // regardless of the cursor's real position.
+    // no-op (nothing to scroll internally). This is the one case where
+    // jumping the page is right - it's an explicit navigation target.
     centerCursor();
+}
+
+// Maps a click/tap on the read view back to a character offset in the
+// raw file text, so double-tapping mid-paragraph to start writing lands
+// the cursor exactly there instead of wherever the textarea's own
+// selection happened to be left (position 0 on a fresh page load, since
+// the hidden textarea never sees the tap itself).
+function offsetFromReadClick(x, y) {
+    let node, nodeOffset;
+
+    if (document.caretRangeFromPoint) {
+        const range = document.caretRangeFromPoint(x, y);
+        if (!range) return null;
+        node = range.startContainer;
+        nodeOffset = range.startOffset;
+    } else if (document.caretPositionFromPoint) {
+        const pos = document.caretPositionFromPoint(x, y);
+        if (!pos) return null;
+        node = pos.offsetNode;
+        nodeOffset = pos.offset;
+    } else {
+        return null;
+    }
+
+    const isText = node.nodeType === Node.TEXT_NODE;
+    const lineSpan = (isText ? node.parentElement : node).closest(".line");
+    if (!lineSpan) return null;
+
+    const lines = Array.from(fileread.querySelectorAll(".line"));
+    const lineIdx = lines.indexOf(lineSpan);
+    if (lineIdx === -1) return null;
+
+    let offset = 0;
+    for (let i = 0; i < lineIdx; i++) {
+        offset += lines[i].textContent.length + 1;
+    }
+
+    return offset + (isText ? nodeOffset : 0);
 }
 
 function scrollToHighlight() {
@@ -225,11 +275,15 @@ function updateBlockCursor() {
 }
 
 // Keeps the cursor's line vertically centered in the viewport (below the
-// topbar) as the user types or moves around, since #filecontent has no
-// scroll of its own - the whole page scrolls, so "recenter" means moving
-// window.scrollY, not the textarea. Naturally clamps to 0 near the start
-// of the file (can't scroll past the top just to center line one), which
-// is the one case where the cursor doesn't end up mid-screen.
+// topbar) as the user types - moving the cursor alone (click, arrow
+// keys, vim motions) deliberately never calls this, only an actual
+// content change does (see this function's callers). #filecontent has
+// no scroll of its own - the whole page scrolls, so "recenter" means
+// moving window.scrollY, not the textarea. Clamps to 0 near the start of
+// the file (can't scroll past the top just to center line one - typing
+// from the top naturally stays uncentered until it reaches the middle).
+// #taWrap's padding-bottom (see home.css) gives the same room at the
+// end of a short file, so the last line can reach center too.
 function centerCursor() {
     if (!editing || helpOpen) return;
 
@@ -260,7 +314,7 @@ function applyVisibility() {
     taWrap.style.display = editing ? "block" : "none";
 }
 
-function setEditing(next) {
+function setEditing(next, targetOffset) {
     editing = next;
     toggleEdit.textContent = editing ? "w" : "r";
     toggleEdit.className = "editor-action " + (editing ? "writing" : "reading");
@@ -273,7 +327,7 @@ function setEditing(next) {
     if (editing) {
         if (modalOn) vimMode = "normal";
         autosize();
-        placeCursorAtHighlight();
+        placeCursorAtHighlight(targetOffset);
     }
 
     updateBlockCursor();
@@ -815,7 +869,7 @@ function handleNormalKey(e) {
     return true;
 }
 
-function startWriting() {
+function startWriting(targetOffset) {
     if (helpOpen) return;
 
     if (lockedBy) {
@@ -825,7 +879,7 @@ function startWriting() {
 
     if (editing) return;
 
-    acquireLock().then(ok => { if (ok) setEditing(true); });
+    acquireLock().then(ok => { if (ok) setEditing(true, targetOffset); });
 }
 
 toggleEdit.addEventListener("click", () => {
@@ -855,17 +909,19 @@ closeBtn.addEventListener("click", () => {
 // The textarea itself deliberately doesn't get an equivalent "double-tap
 // to stop writing" - double-click already means "select this word" there,
 // a much stronger, well-established expectation while actively editing.
-fileread.addEventListener("dblclick", startWriting);
+fileread.addEventListener("dblclick", (e) => {
+    startWriting(offsetFromReadClick(e.clientX, e.clientY));
+});
 
+// centerCursor() only ever runs here, on a real content change - moving
+// the cursor around (click, arrow keys, vim motions) deliberately leaves
+// the page exactly where it is; only typing recentres it.
 textarea.addEventListener("input", () => { autosize(); updateBlockCursor(); centerCursor(); scheduleAutosave(); });
-textarea.addEventListener("click", () => { updateBlockCursor(); centerCursor(); });
+textarea.addEventListener("click", updateBlockCursor);
 textarea.addEventListener("blur", () => { if (editing) save(); });
 
 document.addEventListener("selectionchange", () => {
-    if (document.activeElement === textarea) {
-        updateBlockCursor();
-        centerCursor();
-    }
+    if (document.activeElement === textarea) updateBlockCursor();
 });
 
 document.addEventListener("visibilitychange", () => {
@@ -906,8 +962,15 @@ document.addEventListener("keydown", e => {
     }
 
     if (modalOn && editing && vimMode === "normal" && !helpOpen) {
+        const beforeValue = textarea.value;
+
         if (handleNormalKey(e)) {
-            setTimeout(() => { updateBlockCursor(); centerCursor(); }, 0);
+            // Pure motions (hjkl, w/b/e, 0/$, gg/G...) leave the page
+            // where it is, same as click/arrow-key navigation outside
+            // modal mode - only a key that actually changed the buffer
+            // (x, dd, o, p, r, ~...) counts as "typing" and recentres.
+            const changed = textarea.value !== beforeValue;
+            setTimeout(() => { updateBlockCursor(); if (changed) centerCursor(); }, 0);
             return;
         }
     }

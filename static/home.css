@@ -1090,6 +1090,13 @@ body.chat .topbar {
 
 #taWrap {
     position: relative;
+    /* Room to scroll the last line up to the centre of the viewport -
+       without this, the document simply ends after the text, so once
+       the cursor nears the end of a short file there's nowhere left to
+       scroll and it gets stuck below centre instead of the page
+       treating end-of-file the same as any other line (see
+       centerCursor's scroll-clamp in editor.html). */
+    padding-bottom: 50vh;
 }
 
 #filecontent {
